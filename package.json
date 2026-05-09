@@ -1,0 +1,32 @@
+{
+    "author": "Moddable",
+    "dependencies": {
+        "@moddable/pebbleproxy": "^0.1.0"
+    },
+    "keywords": [
+        "pebble-app"
+    ],
+    "name": "hello-message.",
+    "pebble": {
+        "capabilities": [
+            "configurable"
+        ],
+        "displayName": "JS - Fetch",
+        "enableMultiJS": true,
+        "messageKeys": [],
+        "projectType": "moddable",
+        "resources": {
+            "media": []
+        },
+        "sdkVersion": "3",
+        "targetPlatforms": [
+            "emery",
+            "gabbro"
+        ],
+        "uuid": "980a7e4c-95e1-4c26-a156-7b67399b2771",
+        "watchapp": {
+            "watchface": false
+        }
+    },
+    "version": "1.0.0"
+}
