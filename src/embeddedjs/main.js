@@ -1,6 +1,6 @@
 // Baby StoneFruit watch app.
 // Two-level menu (Feeding / Diaper) -> on select, AppMessage to pkjs ->
-// pkjs hits the proxy with stored credentials -> we show success/failure.
+// pkjs hits Home Assistant /api/services/huckleberry/* with a bearer token.
 
 import { Window, MenuLayer, TextLayer } from "pebble";
 import { sendAppMessage, addAppMessageListener } from "@moddable/pebbleproxy";
@@ -11,18 +11,20 @@ const TOP_MENU = [
 ];
 
 const FEEDING_ITEMS = [
-  { title: "Breast (Left)",  type: "breast_left"  },
-  { title: "Breast (Right)", type: "breast_right" },
-  { title: "Bottle",         type: "bottle"       },
+  { title: "Bottle (120ml)",   type: "bottle"         },
+  { title: "Nurse Left",       type: "nurse_left"     },
+  { title: "Nurse Right",      type: "nurse_right"    },
+  { title: "End Nursing",      type: "nurse_complete" },
 ];
 
 const DIAPER_ITEMS = [
   { title: "Wet",   type: "wet"   },
   { title: "Dirty", type: "dirty" },
   { title: "Both",  type: "both"  },
+  { title: "Dry",   type: "dry"   },
 ];
 
-let currentResultLayer = null;
+let resultLayer = null;
 
 function showResult(text) {
   const win = new Window();
@@ -33,12 +35,12 @@ function showResult(text) {
   });
   win.add(layer);
   win.show();
-  currentResultLayer = { win, layer };
+  resultLayer = { win, layer };
 }
 
 function updateResult(text) {
-  if (!currentResultLayer) return showResult(text);
-  currentResultLayer.layer.text = text;
+  if (!resultLayer) return showResult(text);
+  resultLayer.layer.text = text;
 }
 
 function sendAction(action, type) {
@@ -46,13 +48,12 @@ function sendAction(action, type) {
   sendAppMessage({ action, type });
 }
 
-function buildSubMenu(title, items) {
+function buildSubMenu(title, action, items) {
   const win = new Window({ title });
   const menu = new MenuLayer({
     sections: [{ title, items: items.map(i => ({ title: i.title })) }],
     onSelect: (sectionIndex, itemIndex) => {
-      const item = items[itemIndex];
-      sendAction(title.toLowerCase(), item.type);
+      sendAction(action, items[itemIndex].type);
     },
   });
   win.add(menu);
@@ -66,8 +67,8 @@ function buildTopMenu() {
     onSelect: (sectionIndex, itemIndex) => {
       const choice = TOP_MENU[itemIndex];
       const sub = choice.action === "feeding"
-        ? buildSubMenu("Feeding", FEEDING_ITEMS)
-        : buildSubMenu("Diaper",  DIAPER_ITEMS);
+        ? buildSubMenu("Feeding", "feeding", FEEDING_ITEMS)
+        : buildSubMenu("Diaper",  "diaper",  DIAPER_ITEMS);
       sub.show();
     },
   });

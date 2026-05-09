@@ -1,15 +1,35 @@
 // Phone-side companion for Baby StoneFruit.
-// - Receives action requests from the watch via AppMessage
-// - Reads Huckleberry credentials from Clay settings
-// - POSTs to the cloud proxy, returns success/failure to the watch
+// Watch sends an AppMessage with {action, type}; pkjs reads HA settings from
+// Clay (URL, token, device_id), translates to a Home Assistant service call,
+// and replies success/failure to the watch.
 //
-// Coexists with the Moddable fetch proxy: any AppMessage that isn't ours
-// is forwarded to moddableProxy.
+// Coexists with the Moddable fetch proxy: any AppMessage that isn't ours is
+// forwarded to moddableProxy.
 
 const moddableProxy = require("@moddable/pebbleproxy");
 
-// TODO: replace with your deployed Railway/Render URL.
-var PROXY_URL = "https://your-app.up.railway.app";
+// Map watch action -> HA service path + body augmentation.
+function buildServiceCall(action, type, deviceId) {
+  var base = { device_id: deviceId };
+
+  // Diaper
+  if (action === "diaper") {
+    if (type === "wet")   return { path: "huckleberry/log_diaper_pee",  body: Object.assign({ pee_amount: "medium" }, base) };
+    if (type === "dirty") return { path: "huckleberry/log_diaper_poo",  body: Object.assign({ poo_amount: "medium", color: "yellow", consistency: "solid" }, base) };
+    if (type === "both")  return { path: "huckleberry/log_diaper_both", body: Object.assign({ pee_amount: "medium", poo_amount: "medium", color: "yellow", consistency: "solid" }, base) };
+    if (type === "dry")   return { path: "huckleberry/log_diaper_dry",  body: base };
+  }
+
+  // Feeding
+  if (action === "feeding") {
+    if (type === "bottle")        return { path: "huckleberry/log_bottle",       body: Object.assign({ amount: 120.0, bottle_type: "formula", units: "ml" }, base) };
+    if (type === "nurse_left")    return { path: "huckleberry/start_nursing",    body: Object.assign({ side: "left"  }, base) };
+    if (type === "nurse_right")   return { path: "huckleberry/start_nursing",    body: Object.assign({ side: "right" }, base) };
+    if (type === "nurse_complete")return { path: "huckleberry/complete_nursing", body: base };
+  }
+
+  return null;
+}
 
 function getSettings() {
   try {
@@ -20,15 +40,15 @@ function getSettings() {
   }
 }
 
-function detectTimezone() {
-  try {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
-  } catch (e) {
-    return "UTC";
-  }
+function settingValue(s, key) {
+  return s[key] && s[key].value;
 }
 
-function reply(transactionId, ok, message) {
+function trimSlash(url) {
+  return url.replace(/\/+$/, "");
+}
+
+function reply(ok, message) {
   Pebble.sendAppMessage(
     { result: ok ? "ok" : "err", message: message || "" },
     function () {},
@@ -36,21 +56,22 @@ function reply(transactionId, ok, message) {
   );
 }
 
-function postAction(path, body, onDone) {
+function callHomeAssistant(haUrl, token, path, body, onDone) {
   var xhr = new XMLHttpRequest();
-  xhr.open("POST", PROXY_URL + path, true);
+  var url = trimSlash(haUrl) + "/api/services/" + path;
+  xhr.open("POST", url, true);
+  xhr.setRequestHeader("Authorization", "Bearer " + token);
   xhr.setRequestHeader("Content-Type", "application/json");
   xhr.timeout = 20000;
   xhr.onload = function () {
     var ok = xhr.status >= 200 && xhr.status < 300;
     var msg = "";
-    try {
-      var json = JSON.parse(xhr.responseText || "{}");
-      ok = ok && json.ok === true;
-      if (!ok) msg = json.error || ("HTTP " + xhr.status);
-    } catch (e) {
-      ok = false;
-      msg = "bad response";
+    if (!ok) {
+      msg = "HTTP " + xhr.status;
+      try {
+        var json = JSON.parse(xhr.responseText || "{}");
+        if (json.message) msg = json.message;
+      } catch (e) {}
     }
     onDone(ok, msg);
   };
@@ -61,18 +82,24 @@ function postAction(path, body, onDone) {
 
 function handleAction(action, type) {
   var s = getSettings();
-  var email = s.huckleberryEmail && s.huckleberryEmail.value;
-  var password = s.huckleberryPassword && s.huckleberryPassword.value;
-  if (!email || !password) {
-    reply(null, false, "Set credentials in app settings");
+  var haUrl    = settingValue(s, "haUrl");
+  var token    = settingValue(s, "haToken");
+  var deviceId = settingValue(s, "haDeviceId");
+
+  if (!haUrl || !token || !deviceId) {
+    reply(false, "Open settings to configure Home Assistant");
     return;
   }
-  var path = action === "feeding" ? "/feeding" : "/diaper";
-  postAction(
-    path,
-    { email: email, password: password, type: type, timezone: detectTimezone() },
-    function (ok, msg) { reply(null, ok, msg); }
-  );
+
+  var call = buildServiceCall(action, type, deviceId);
+  if (!call) {
+    reply(false, "Unknown action");
+    return;
+  }
+
+  callHomeAssistant(haUrl, token, call.path, call.body, function (ok, msg) {
+    reply(ok, msg);
+  });
 }
 
 Pebble.addEventListener("ready", moddableProxy.readyReceived);
@@ -88,10 +115,10 @@ Pebble.addEventListener("appmessage", function (e) {
 });
 
 Pebble.addEventListener("showConfiguration", function () {
-  var url = "https://cdn.jsdelivr.net/gh/" +
-    "anthropics/baby-stonefruit-config@main/config.html"; // placeholder
-  // Replace with your hosted config.html URL once published.
-  Pebble.openURL(url);
+  // TODO: replace with the real hosted URL of config/config.html (e.g. GitHub Pages).
+  var url = "https://michaellunzer.github.io/babystonefruit/config.html";
+  var current = encodeURIComponent(localStorage.getItem("clay-settings") || "{}");
+  Pebble.openURL(url + "?current=" + current);
 });
 
 Pebble.addEventListener("webviewclosed", function (e) {
