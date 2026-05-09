@@ -1,19 +1,24 @@
 {
-    "author": "Moddable",
+    "author": "Michael Lunzer",
     "dependencies": {
         "@moddable/pebbleproxy": "^0.1.0"
     },
     "keywords": [
         "pebble-app"
     ],
-    "name": "hello-message.",
+    "name": "baby-stonefruit",
     "pebble": {
         "capabilities": [
             "configurable"
         ],
-        "displayName": "JS - Fetch",
+        "displayName": "Baby StoneFruit",
         "enableMultiJS": true,
-        "messageKeys": [],
+        "messageKeys": [
+            "action",
+            "type",
+            "result",
+            "message"
+        ],
         "projectType": "moddable",
         "resources": {
             "media": []
@@ -28,5 +33,5 @@
             "watchface": false
         }
     },
-    "version": "1.0.0"
+    "version": "0.1.0"
 }
