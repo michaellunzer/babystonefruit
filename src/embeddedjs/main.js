@@ -24,21 +24,24 @@ const COLORS = {
 // Detailed variants commented out — uncomment when finer logging is wanted.
 
 const ACTIONS = [
-  // Texture IDs follow package.json declaration order:
-  //   1 = IMAGE_DIAPER (poop)
-  //   2 = IMAGE_BOTTLE (baby bottle)
-  //   3 = IMAGE_NURSE  (nursing)
-  //   4 = IMAGE_STOP   (stop sign)
-  // If you reorder the resources block in package.json, re-verify these.
-  // { label: "Diaper: Wet",   action: "diaper_wet",   color: COLORS.diaper,   image: 1 },
-  // { label: "Diaper: Dirty", action: "diaper_dirty", color: COLORS.diaper,   image: 1 },
-  // { label: "Diaper: Dry",   action: "diaper_dry",   color: COLORS.diaper,   image: 1 },
-  { label: "Diaper",      action: "diaper",    color: COLORS.diaper,   image: 1 },  // poop
+  // Empirically the actual Texture mapping in this build is:
+  //   Texture(1) -> stop.png
+  //   Texture(2) -> bottle.png
+  //   Texture(3) -> nursing.png
+  //   Texture(4) -> poop.png
+  // That's NOT package.json declaration order (poop & stop are swapped) —
+  // probably because of how CloudPebble assigned IDs when these resources
+  // were added. If we ever re-import or rename them, verify the mapping
+  // by setting each action to a known image and reading the screen.
+  // { label: "Diaper: Wet",   action: "diaper_wet",   color: COLORS.diaper,   image: 4 },
+  // { label: "Diaper: Dirty", action: "diaper_dirty", color: COLORS.diaper,   image: 4 },
+  // { label: "Diaper: Dry",   action: "diaper_dry",   color: COLORS.diaper,   image: 4 },
+  { label: "Diaper",      action: "diaper",    color: COLORS.diaper,   image: 4 },  // poop
   { label: "Bottle",      action: "bottle",    color: COLORS.bottle,   image: 2 },  // bottle
   // { label: "Nurse Left",  action: "nurse_left",  color: COLORS.nurse,    image: 3 },
   // { label: "Nurse Right", action: "nurse_right", color: COLORS.nurse,    image: 3 },
   { label: "Nurse",       action: "nurse",     color: COLORS.nurse,    image: 3 },  // nursing
-  { label: "End Nursing", action: "nurse_end", color: COLORS.endNurse, image: 4 },  // stop
+  { label: "End Nursing", action: "nurse_end", color: COLORS.endNurse, image: 1 },  // stop
 ];
 
 const HINT_DEFAULT    = "Up/Down  •  Select";
