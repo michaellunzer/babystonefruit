@@ -23,6 +23,8 @@ const ACTIONS = [
   { label: "End Nursing",    path: "huckleberry/complete_nursing", body: {} },
 ];
 
+const HINT_DEFAULT = "Up/Down  •  Select";
+
 let selectedIndex = 0;
 let busy = false;
 
@@ -30,18 +32,21 @@ let busy = false;
 
 const screenSkin = new Skin({ fill: "white" });
 const labelStyle = new Style({
-  font: "bold 18px Gothic",
+  font: "bold 24px Gothic",
   color: "black",
   horizontal: "center",
   vertical: "middle",
 });
 const hintStyle = new Style({
-  font: "12px Gothic",
+  font: "14px Gothic",
   color: "black",
   horizontal: "center",
   vertical: "middle",
 });
 
+// Anchor stores the component instance into the data object passed to the
+// Application constructor. After `new App(data)`, data.main / data.hint hold
+// the Label references and we can mutate label.string directly.
 const App = Application.template($ => ({
   skin: screenSkin,
   contents: [
@@ -55,23 +60,22 @@ const App = Application.template($ => ({
       anchor: "hint",
       left: 0, right: 0, bottom: 20, height: 20,
       style: hintStyle,
-      string: "Up/Down choose  Select log",
+      string: HINT_DEFAULT,
     }),
   ],
 }));
 
-const app = new App({ main: null, hint: null }, { displayListLength: 4608 });
-const mainLabel = app.content("main");
-const hintLabel = app.content("hint");
+const refs = { main: null, hint: null };
+const app = new App(refs, { displayListLength: 4608 });
 
 function showAction(index) {
-  mainLabel.string = ACTIONS[index].label;
-  hintLabel.string = "Up/Down choose  Select log";
+  refs.main.string = ACTIONS[index].label;
+  refs.hint.string = HINT_DEFAULT;
 }
 
 function showStatus(text, hint) {
-  mainLabel.string = text;
-  hintLabel.string = hint || "";
+  refs.main.string = text;
+  refs.hint.string = hint || "";
 }
 
 // ----- Networking ---------------------------------------------------------
@@ -114,7 +118,7 @@ new Button({
       busy = true;
       showStatus("Logging...", "");
       logAction(selectedIndex).then(ok => {
-        showStatus(ok ? "Logged" : "Error", ok ? "Up/Down choose  Select log" : "press Select to retry");
+        showStatus(ok ? "Logged" : "Error", ok ? HINT_DEFAULT : "Select to retry");
         setTimeout(() => {
           busy = false;
           showAction(selectedIndex);
