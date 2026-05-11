@@ -118,6 +118,14 @@ function showStatus(text, hint) {
 }
 
 // ----- AppMessage --------------------------------------------------------
+//
+// pebble/message reads its callbacks from the constructor options, not
+// from properties assigned after construction — so onWritable HAS to be
+// declared inline. Track writability ourselves so a Select press that
+// happens before the channel becomes writable still gets delivered.
+
+let writable = false;
+const outbox = [];
 
 const message = new Message({
   keys: ["ACTION", "RESULT", "STATUS", "MESSAGE"],
@@ -125,40 +133,34 @@ const message = new Message({
     const msg = this.read();
     const result = msg.get("RESULT");
     const status = msg.get("STATUS");
+    console.log(`watch <- pkjs RESULT=${result} STATUS=${status}`);
     if (pendingResolve) {
       const resolve = pendingResolve;
       pendingResolve = null;
       resolve({ ok: result === "ok", status: status || 0 });
     }
   },
-});
-
-// Queue of outgoing messages waiting for the channel to become writable.
-let pendingSend = null;
-const messageReady = (() => {
-  let ready = false;
-  let queue = [];
-  message.onWritable = function () {
-    ready = true;
-    while (queue.length) {
-      const m = queue.shift();
+  onWritable() {
+    writable = true;
+    while (outbox.length) {
+      const m = outbox.shift();
+      console.log(`watch -> pkjs ACTION=${m.get("ACTION")}`);
       this.write(m);
     }
-  };
-  return {
-    send(map) {
-      if (ready) message.write(map);
-      else queue.push(map);
-    },
-  };
-})();
+  },
+});
 
 function sendAction(action) {
   return new Promise((resolve) => {
     pendingResolve = resolve;
     const m = new Map();
     m.set("ACTION", action);
-    messageReady.send(m);
+    if (writable) {
+      console.log(`watch -> pkjs ACTION=${action}`);
+      message.write(m);
+    } else {
+      outbox.push(m);
+    }
   });
 }
 
