@@ -30,13 +30,13 @@ let busy = false;
 
 const screenSkin = new Skin({ fill: "white" });
 const labelStyle = new Style({
-  font: "bold 18px Gothic",
+  font: "bold 24px Gothic",
   color: "black",
   horizontal: "center",
   vertical: "middle",
 });
 const hintStyle = new Style({
-  font: "12px Gothic",
+  font: "14px Gothic",
   color: "black",
   horizontal: "center",
   vertical: "middle",
