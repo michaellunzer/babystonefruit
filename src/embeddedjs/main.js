@@ -33,16 +33,22 @@ const COLORS = {
 // to a single "Both" log and nursing to a no-side start. Uncomment to bring
 // the finer-grained options back into the menu.
 
+// Textures are numbered in the order they appear in package.json's media[]:
+//   1 = IMAGE_DIAPER (poop.png)
+//   2 = IMAGE_BOTTLE
+//   3 = IMAGE_NURSE
+//   4 = IMAGE_STOP
+
 const ACTIONS = [
-  // { label: "Diaper: Wet",   path: "huckleberry/log_diaper_pee",   body: { pee_amount: "medium" }, color: COLORS.diaper },
-  // { label: "Diaper: Dirty", path: "huckleberry/log_diaper_poo",   body: { poo_amount: "medium", color: "yellow", consistency: "solid" }, color: COLORS.diaper },
-  // { label: "Diaper: Dry",   path: "huckleberry/log_diaper_dry",   body: {}, color: COLORS.diaper },
-  { label: "Diaper",      path: "huckleberry/log_diaper_both",  body: { pee_amount: "medium", poo_amount: "medium", color: "yellow", consistency: "solid" }, color: COLORS.diaper },
-  { label: "Bottle",      path: "huckleberry/log_bottle",       body: { amount: 120.0, bottle_type: "formula", units: "ml" }, color: COLORS.bottle },
-  // { label: "Nurse Left",  path: "huckleberry/start_nursing",    body: { side: "left"  }, color: COLORS.nurse },
-  // { label: "Nurse Right", path: "huckleberry/start_nursing",    body: { side: "right" }, color: COLORS.nurse },
-  { label: "Nurse",       path: "huckleberry/start_nursing",    body: {}, color: COLORS.nurse },
-  { label: "End Nursing", path: "huckleberry/complete_nursing", body: {}, color: COLORS.nurse },
+  // { label: "Diaper: Wet",   path: "huckleberry/log_diaper_pee",   body: { pee_amount: "medium" }, color: COLORS.diaper, image: 1 },
+  // { label: "Diaper: Dirty", path: "huckleberry/log_diaper_poo",   body: { poo_amount: "medium", color: "yellow", consistency: "solid" }, color: COLORS.diaper, image: 1 },
+  // { label: "Diaper: Dry",   path: "huckleberry/log_diaper_dry",   body: {}, color: COLORS.diaper, image: 1 },
+  { label: "Diaper",      path: "huckleberry/log_diaper_both",  body: { pee_amount: "medium", poo_amount: "medium", color: "yellow", consistency: "solid" }, color: COLORS.diaper, image: 1 },
+  { label: "Bottle",      path: "huckleberry/log_bottle",       body: { amount: 120.0, bottle_type: "formula", units: "ml" }, color: COLORS.bottle, image: 2 },
+  // { label: "Nurse Left",  path: "huckleberry/start_nursing",    body: { side: "left"  }, color: COLORS.nurse, image: 3 },
+  // { label: "Nurse Right", path: "huckleberry/start_nursing",    body: { side: "right" }, color: COLORS.nurse, image: 3 },
+  { label: "Nurse",       path: "huckleberry/start_nursing",    body: {}, color: COLORS.nurse, image: 3 },
+  { label: "End Nursing", path: "huckleberry/complete_nursing", body: {}, color: COLORS.nurse, image: 4 },
 ];
 
 const CHILD_ITEM_INDEX = multipleChildren ? 0 : -1;
@@ -66,6 +72,9 @@ function hintFor(i) {
 }
 function colorFor(i) {
   return isChildSlot(i) ? COLORS.child : actionAt(i).color;
+}
+function imageIdFor(i) {
+  return isChildSlot(i) ? 0 : actionAt(i).image;  // 0 = hide
 }
 
 // ----- UI -----------------------------------------------------------------
@@ -99,6 +108,20 @@ const hintStyle = new Style({
   vertical: "middle",
 });
 
+// One Skin per Texture so we can swap the icon by reassigning the Content's
+// skin on each render. Texture(0) is invalid, so index 0 maps to a hidden
+// state (no skin assigned for the Child slot etc.).
+function makeIconSkin(textureId) {
+  if (!textureId) return null;
+  const tex = new Texture(textureId);
+  return new Skin({
+    texture: tex,
+    width: tex.width,
+    height: tex.height,
+  });
+}
+const iconSkins = [null, makeIconSkin(1), makeIconSkin(2), makeIconSkin(3), makeIconSkin(4)];
+
 const App = Application.template($ => ({
   skin: statusSkin,
   contents: [
@@ -109,13 +132,18 @@ const App = Application.template($ => ({
       contents: [
         Label($, {
           anchor: "main",
-          left: 0, right: 0, top: 30, height: 60,
+          left: 0, right: 0, top: 10, height: 36,
           style: labelStyle,
           string: labelFor(selectedIndex),
         }),
+        Content($, {
+          anchor: "icon",
+          top: 50, bottom: 36, left: 0, right: 0,
+          skin: iconSkins[imageIdFor(selectedIndex)],
+        }),
         Label($, {
           anchor: "hint",
-          left: 0, right: 0, bottom: 20, height: 20,
+          left: 0, right: 0, bottom: 8, height: 20,
           style: hintStyle,
           string: hintFor(selectedIndex),
         }),
@@ -124,19 +152,23 @@ const App = Application.template($ => ({
   ],
 }));
 
-const refs = { bg: null, main: null, hint: null };
+const refs = { bg: null, main: null, icon: null, hint: null };
 const app = new App(refs, { displayListLength: 4608 });
 
 function render() {
   refs.main.string = labelFor(selectedIndex);
   refs.hint.string = hintFor(selectedIndex);
   refs.bg.skin     = skinForIndex(selectedIndex);
+  refs.icon.skin   = iconSkins[imageIdFor(selectedIndex)];
 }
 
 function showStatus(text, hint, useStatusBg) {
   refs.main.string = text;
   refs.hint.string = hint || "";
-  if (useStatusBg) refs.bg.skin = statusSkin;
+  if (useStatusBg) {
+    refs.bg.skin   = statusSkin;
+    refs.icon.skin = null;   // hide the action icon while status is showing
+  }
 }
 
 // ----- Networking ---------------------------------------------------------
