@@ -88,7 +88,9 @@ const HOST = HA_URL.replace(/^https?:\/\//, "").replace(/\/.*$/, "");
 function logAction(index) {
   return new Promise((resolve) => {
     const action = ACTIONS[index];
-    const path = `/api/services/${action.path}`;
+    // No leading slash: pebbleproxy already prefixes "/" when constructing
+    // the URL on the phone side, so "/api/..." becomes "//api/..." → 404.
+    const path = `api/services/${action.path}`;
     const body = JSON.stringify(Object.assign({ device_id: DEVICE_ID }, action.body));
 
     const https = new device.network.https.io({
