@@ -1,14 +1,37 @@
 // Baby StoneFruit — runs on the Pebble watch (Moddable XS / Piu).
 //
-// UI: a centered label showing the current action. Up/Down cycles actions,
-// Select fires the current one, Back exits (Pebble system default).
+// UI: a centered label showing the current action (or "Child: <name>" when
+// multiple children are configured). Up/Down cycles items, Select fires
+// (or, for the child item, advances to the next child and persists it).
+// Back exits (Pebble system default).
 //
-// Networking: fetch() is bridged through @moddable/pebbleproxy on the phone
-// companion, so the watch talks to Home Assistant via the phone's connection.
+// Networking: device.network.https.io routes through @moddable/pebbleproxy
+// on the phone, so the watch talks to Home Assistant via the phone's network.
 
 import {} from "piu/MC";
 import Button from "pebble/button";
-import { HA_URL, HA_TOKEN, DEVICE_ID } from "credentials";
+import Preference from "preference";
+import { HA_URL, HA_TOKEN, CHILDREN } from "credentials";
+
+// ----- Persistence --------------------------------------------------------
+
+const PREF_DOMAIN = "babystonefruit";
+const PREF_CHILD  = "child";
+
+function loadChildIndex() {
+  try {
+    const v = Preference.get(PREF_DOMAIN, PREF_CHILD);
+    if (typeof v === "number" && v >= 0 && v < CHILDREN.length) return v;
+  } catch (e) {}
+  return 0;
+}
+
+function saveChildIndex(i) {
+  try { Preference.set(PREF_DOMAIN, PREF_CHILD, i); } catch (e) {}
+}
+
+let childIndex = loadChildIndex();
+const multipleChildren = CHILDREN.length > 1;
 
 // ----- Action catalog -----------------------------------------------------
 
@@ -23,10 +46,27 @@ const ACTIONS = [
   { label: "End Nursing",    path: "huckleberry/complete_nursing", body: {} },
 ];
 
-const HINT_DEFAULT = "Up/Down  •  Select";
+// The "Switch child" slot is index 0 when multiple children exist; the
+// action list follows. Single-child mode: just the action list.
+const CHILD_ITEM_INDEX = multipleChildren ? 0 : -1;
+const ITEM_COUNT       = ACTIONS.length + (multipleChildren ? 1 : 0);
 
-let selectedIndex = 0;
+const HINT_DEFAULT     = "Up/Down  •  Select";
+const HINT_SWITCH      = "Select cycles child";
+const STATUS_FLASH_MS  = 700;
+
+let selectedIndex = multipleChildren ? 1 : 0;  // start on first action
 let busy = false;
+
+function isChildSlot(i) { return i === CHILD_ITEM_INDEX; }
+function actionAt(i)    { return ACTIONS[multipleChildren ? i - 1 : i]; }
+function labelFor(i) {
+  if (isChildSlot(i)) return `Child: ${CHILDREN[childIndex].name}`;
+  return actionAt(i).label;
+}
+function hintFor(i) {
+  return isChildSlot(i) ? HINT_SWITCH : HINT_DEFAULT;
+}
 
 // ----- UI -----------------------------------------------------------------
 
@@ -44,9 +84,6 @@ const hintStyle = new Style({
   vertical: "middle",
 });
 
-// Anchor stores the component instance into the data object passed to the
-// Application constructor. After `new App(data)`, data.main / data.hint hold
-// the Label references and we can mutate label.string directly.
 const App = Application.template($ => ({
   skin: screenSkin,
   contents: [
@@ -54,13 +91,13 @@ const App = Application.template($ => ({
       anchor: "main",
       left: 0, right: 0, top: 30, height: 60,
       style: labelStyle,
-      string: ACTIONS[0].label,
+      string: labelFor(selectedIndex),
     }),
     Label($, {
       anchor: "hint",
       left: 0, right: 0, bottom: 20, height: 20,
       style: hintStyle,
-      string: HINT_DEFAULT,
+      string: hintFor(selectedIndex),
     }),
   ],
 }));
@@ -68,9 +105,9 @@ const App = Application.template($ => ({
 const refs = { main: null, hint: null };
 const app = new App(refs, { displayListLength: 4608 });
 
-function showAction(index) {
-  refs.main.string = ACTIONS[index].label;
-  refs.hint.string = HINT_DEFAULT;
+function render() {
+  refs.main.string = labelFor(selectedIndex);
+  refs.hint.string = hintFor(selectedIndex);
 }
 
 function showStatus(text, hint) {
@@ -80,18 +117,14 @@ function showStatus(text, hint) {
 
 // ----- Networking ---------------------------------------------------------
 
-// Strip the https:// prefix from HA_URL to get just the host for
-// device.network.https.io. The Pebble HTTP client takes host + path
-// separately, not a full URL string.
 const HOST = HA_URL.replace(/^https?:\/\//, "").replace(/\/.*$/, "");
 
 function logAction(index) {
   return new Promise((resolve) => {
-    const action = ACTIONS[index];
-    // No leading slash: pebbleproxy already prefixes "/" when constructing
-    // the URL on the phone side, so "/api/..." becomes "//api/..." → 404.
-    const path = `api/services/${action.path}`;
-    const body = JSON.stringify(Object.assign({ device_id: DEVICE_ID }, action.body));
+    const action   = actionAt(index);
+    const child    = CHILDREN[childIndex];
+    const path     = `api/services/${action.path}`;        // no leading /
+    const body     = JSON.stringify(Object.assign({ device_id: child.deviceId }, action.body));
 
     const https = new device.network.https.io({
       ...device.network.https,
@@ -99,6 +132,7 @@ function logAction(index) {
     });
 
     let status = 0;
+    let lastError = null;
     let bodyPosition = 0;
 
     https.request({
@@ -109,9 +143,7 @@ function logAction(index) {
         ["Content-Type",   "application/json"],
         ["Content-Length", body.length],
       ]),
-      onHeaders(s) {
-        status = s;
-      },
+      onHeaders(s) { status = s; },
       onWritable(count) {
         const remaining = body.length - bodyPosition;
         const use = Math.min(count, remaining);
@@ -121,7 +153,6 @@ function logAction(index) {
         }
       },
       onReadable(count) {
-        // Drain the response body (we don't use it; HA returns [] on success).
         let offset = 0;
         while (offset < count) {
           const step = Math.min(128, count - offset);
@@ -130,9 +161,10 @@ function logAction(index) {
         }
       },
       onDone(error) {
+        lastError = error || null;
         const ok = !error && status >= 200 && status < 300;
         console.log(`HA ${action.path} -> ${status}${error ? " err:" + error : ""}`);
-        resolve(ok);
+        resolve({ ok, status, error: lastError });
       },
     });
   });
@@ -143,26 +175,46 @@ function logAction(index) {
 new Button({
   types: ["select", "up", "down"],
   onPush(down, type) {
-    if (!down) return;          // react on press, not release
+    if (!down) return;
     if (busy) return;
 
     if (type === "up") {
-      selectedIndex = (selectedIndex - 1 + ACTIONS.length) % ACTIONS.length;
-      showAction(selectedIndex);
-    } else if (type === "down") {
-      selectedIndex = (selectedIndex + 1) % ACTIONS.length;
-      showAction(selectedIndex);
-    } else if (type === "select") {
-      busy = true;
-      showStatus("Logging...", "");
-      logAction(selectedIndex).then(ok => {
-        showStatus(ok ? "Logged" : "Error", ok ? HINT_DEFAULT : "Select to retry");
-        setTimeout(() => {
-          busy = false;
-          showAction(selectedIndex);
-        }, 1200);
-      });
+      selectedIndex = (selectedIndex - 1 + ITEM_COUNT) % ITEM_COUNT;
+      render();
+      return;
     }
+
+    if (type === "down") {
+      selectedIndex = (selectedIndex + 1) % ITEM_COUNT;
+      render();
+      return;
+    }
+
+    // Select
+    if (isChildSlot(selectedIndex)) {
+      childIndex = (childIndex + 1) % CHILDREN.length;
+      saveChildIndex(childIndex);
+      render();
+      return;
+    }
+
+    busy = true;
+    showStatus("Logging...", "");
+    logAction(selectedIndex).then(result => {
+      if (result.ok) {
+        showStatus("Logged", HINT_DEFAULT);
+      } else if (result.status) {
+        // Server responded with non-2xx; show the HTTP code.
+        showStatus(`Error ${result.status}`, "Select to retry");
+      } else {
+        // No HTTP response (network / phone disconnected / TLS failure).
+        showStatus("Network err", "Select to retry");
+      }
+      setTimeout(() => {
+        busy = false;
+        render();
+      }, STATUS_FLASH_MS);
+    });
   },
 });
 
