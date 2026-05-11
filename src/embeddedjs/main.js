@@ -28,15 +28,17 @@ const COLORS = {
 // just the integers on the right-hand side below.
 //
 // Current empirical mapping (verified by viewing the watch screen):
-//   Texture(1) -> stop.png   (declared as IMAGE_STOP)
+//   Texture(1) -> poop.png   (declared as IMAGE_DIAPER)
 //   Texture(2) -> bottle.png (IMAGE_BOTTLE)
 //   Texture(3) -> nursing.png (IMAGE_NURSE)
-//   Texture(4) -> poop.png   (IMAGE_DIAPER)
+//   Texture(4) -> stop.png   (IMAGE_STOP)
+// i.e. package.json declaration order, 1-indexed. (Earlier PRs flipped 1 and
+// 4 based on a misreading of screenshots; corrected here.)
 
-const IMAGE_STOP   = 1;
+const IMAGE_DIAPER = 1;
 const IMAGE_BOTTLE = 2;
 const IMAGE_NURSE  = 3;
-const IMAGE_DIAPER = 4;
+const IMAGE_STOP   = 4;
 
 // ----- Action catalog -----------------------------------------------------
 //
