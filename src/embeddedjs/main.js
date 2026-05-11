@@ -10,27 +10,13 @@
 
 import {} from "piu/MC";
 import Button from "pebble/button";
-import Preference from "preference";
 import { HA_URL, HA_TOKEN, CHILDREN } from "credentials";
 
-// ----- Persistence --------------------------------------------------------
-
-const PREF_DOMAIN = "babystonefruit";
-const PREF_CHILD  = "child";
-
-function loadChildIndex() {
-  try {
-    const v = Preference.get(PREF_DOMAIN, PREF_CHILD);
-    if (typeof v === "number" && v >= 0 && v < CHILDREN.length) return v;
-  } catch (e) {}
-  return 0;
-}
-
-function saveChildIndex(i) {
-  try { Preference.set(PREF_DOMAIN, PREF_CHILD, i); } catch (e) {}
-}
-
-let childIndex = loadChildIndex();
+// Pebble doesn't ship the Moddable Preference module, so child selection
+// is in-memory only — it resets to the first child each time the app
+// launches. (Acceptable for now; we can add AppMessage-based persistence
+// via pkjs later if it becomes annoying.)
+let childIndex = 0;
 const multipleChildren = CHILDREN.length > 1;
 
 // ----- Action catalog -----------------------------------------------------
@@ -193,7 +179,6 @@ new Button({
     // Select
     if (isChildSlot(selectedIndex)) {
       childIndex = (childIndex + 1) % CHILDREN.length;
-      saveChildIndex(childIndex);
       render();
       return;
     }

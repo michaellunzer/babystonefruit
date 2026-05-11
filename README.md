@@ -36,7 +36,8 @@ Actions cycle through diaper changes (Wet / Dirty / Both / Dry), Bottle
 (120 ml formula), Nurse Left / Right, and End Nursing. Each maps to one
 HA service under the `huckleberry` integration. When two or more children
 are configured, the first item becomes "Child: \<name\>" — Select cycles
-to the next child and the choice is persisted across launches.
+to the next child. The pick resets to the first child each time the app
+launches (Pebble doesn't ship Moddable's `Preference` module).
 
 When a call fails, the watch briefly shows `Error <status>` (e.g. `Error 401`
 for a bad token, `Error 404` for a wrong path) or `Network err` if the
