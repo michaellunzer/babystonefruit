@@ -11,7 +11,12 @@
         "capabilities": [],
         "displayName": "Baby StoneFruit",
         "enableMultiJS": true,
-        "messageKeys": [],
+        "messageKeys": [
+            "ACTION",
+            "RESULT",
+            "STATUS",
+            "MESSAGE"
+        ],
         "projectType": "moddable",
         "resources": {
             "media": [
