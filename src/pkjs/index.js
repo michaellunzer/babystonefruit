@@ -115,7 +115,7 @@ Pebble.addEventListener("appmessage", function (e) {
 });
 
 Pebble.addEventListener("showConfiguration", function () {
-  var url = "https://archive.michaellunzer.com/config/config.html";
+  var url = "https://babystonefruit.michaellunzer.com/config/config.html";
   var current = encodeURIComponent(localStorage.getItem("clay-settings") || "{}");
   Pebble.openURL(url + "?current=" + current);
 });
