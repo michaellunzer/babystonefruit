@@ -18,30 +18,41 @@ const COLORS = {
   bottle:    "#A084E8",  // purple
 };
 
+// ----- Image resource constants -------------------------------------------
+//
+// new Texture(N) on Pebble takes a numeric resource ID — names like
+// "IMAGE_DIAPER" can't be passed to it directly. To keep the code readable
+// (and to make a wrong mapping a one-line fix), we declare named constants
+// here that map each identifier to its actual runtime ID. If you ever
+// re-import resources in CloudPebble and the icons come out swapped, edit
+// just the integers on the right-hand side below.
+//
+// Current empirical mapping (verified by viewing the watch screen):
+//   Texture(1) -> stop.png   (declared as IMAGE_STOP)
+//   Texture(2) -> bottle.png (IMAGE_BOTTLE)
+//   Texture(3) -> nursing.png (IMAGE_NURSE)
+//   Texture(4) -> poop.png   (IMAGE_DIAPER)
+
+const IMAGE_STOP   = 1;
+const IMAGE_BOTTLE = 2;
+const IMAGE_NURSE  = 3;
+const IMAGE_DIAPER = 4;
+
 // ----- Action catalog -----------------------------------------------------
 //
 // Each entry: label, action key (sent to pkjs), color, image id.
 // Detailed variants commented out — uncomment when finer logging is wanted.
 
 const ACTIONS = [
-  // Empirically the actual Texture mapping in this build is:
-  //   Texture(1) -> stop.png
-  //   Texture(2) -> bottle.png
-  //   Texture(3) -> nursing.png
-  //   Texture(4) -> poop.png
-  // That's NOT package.json declaration order (poop & stop are swapped) —
-  // probably because of how CloudPebble assigned IDs when these resources
-  // were added. If we ever re-import or rename them, verify the mapping
-  // by setting each action to a known image and reading the screen.
-  // { label: "Diaper: Wet",   action: "diaper_wet",   color: COLORS.diaper,   image: 4 },
-  // { label: "Diaper: Dirty", action: "diaper_dirty", color: COLORS.diaper,   image: 4 },
-  // { label: "Diaper: Dry",   action: "diaper_dry",   color: COLORS.diaper,   image: 4 },
-  { label: "Diaper",      action: "diaper",    color: COLORS.diaper,   image: 4 },  // poop
-  { label: "Bottle",      action: "bottle",    color: COLORS.bottle,   image: 2 },  // bottle
-  // { label: "Nurse Left",  action: "nurse_left",  color: COLORS.nurse,    image: 3 },
-  // { label: "Nurse Right", action: "nurse_right", color: COLORS.nurse,    image: 3 },
-  { label: "Nurse",       action: "nurse",     color: COLORS.nurse,    image: 3 },  // nursing
-  { label: "End Nursing", action: "nurse_end", color: COLORS.endNurse, image: 1 },  // stop
+  // { label: "Diaper: Wet",   action: "diaper_wet",   color: COLORS.diaper,   image: IMAGE_DIAPER },
+  // { label: "Diaper: Dirty", action: "diaper_dirty", color: COLORS.diaper,   image: IMAGE_DIAPER },
+  // { label: "Diaper: Dry",   action: "diaper_dry",   color: COLORS.diaper,   image: IMAGE_DIAPER },
+  { label: "Diaper",      action: "diaper",    color: COLORS.diaper,   image: IMAGE_DIAPER },
+  { label: "Bottle",      action: "bottle",    color: COLORS.bottle,   image: IMAGE_BOTTLE },
+  // { label: "Nurse Left",  action: "nurse_left",  color: COLORS.nurse,    image: IMAGE_NURSE  },
+  // { label: "Nurse Right", action: "nurse_right", color: COLORS.nurse,    image: IMAGE_NURSE  },
+  { label: "Nurse",       action: "nurse",     color: COLORS.nurse,    image: IMAGE_NURSE  },
+  { label: "End Nursing", action: "nurse_end", color: COLORS.endNurse, image: IMAGE_STOP   },
 ];
 
 const HINT_DEFAULT    = "Up/Down  •  Select";
