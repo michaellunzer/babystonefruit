@@ -21,6 +21,10 @@ const HA_URL    = process.env.Home_Assistant_URL;
 const HA_TOKEN  = process.env.HA_long_token;
 const DEVICE_ID = process.env.HA_kid_device_id;
 
+console.log("pkjs: HA_URL=" + (HA_URL ? "set" : "MISSING")
+  + " HA_TOKEN=" + (HA_TOKEN ? "set(" + HA_TOKEN.length + ")" : "MISSING")
+  + " DEVICE_ID=" + (DEVICE_ID ? "set" : "MISSING"));
+
 // Map watch ACTION -> { service path, request body extras }
 function buildCall(action) {
   switch (action) {
@@ -83,7 +87,9 @@ Pebble.addEventListener("ready", moddableProxy.readyReceived);
 
 Pebble.addEventListener("appmessage", function (e) {
   const payload = e.payload || {};
+  console.log("pkjs <- watch payload keys: " + Object.keys(payload).join(","));
   if (typeof payload.ACTION === "string") {
+    console.log("pkjs handling ACTION=" + payload.ACTION);
     callHomeAssistant(payload.ACTION);
     return;
   }
