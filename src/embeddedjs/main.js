@@ -8,7 +8,7 @@
 
 import {} from "piu/MC";
 import Button from "pebble/button";
-import { HA_URL, HA_TOKEN, DEVICE_ID } from "./credentials";
+import { HA_URL, HA_TOKEN, DEVICE_ID } from "credentials";
 
 // ----- Action catalog -----------------------------------------------------
 
