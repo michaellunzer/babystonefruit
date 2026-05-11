@@ -84,18 +84,20 @@ async function logAction(index) {
   const action = ACTIONS[index];
   const url = `${HA_URL.replace(/\/+$/, "")}/api/services/${action.path}`;
   const body = JSON.stringify(Object.assign({ device_id: DEVICE_ID }, action.body));
+
+  // pebbleproxy's fetch doesn't like a plain object for `headers`; pass
+  // entries as an array of [key, value] pairs (Headers-compatible form).
+  const headers = [
+    ["Authorization", `Bearer ${HA_TOKEN}`],
+    ["Content-Type", "application/json"],
+  ];
+
   try {
-    const res = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${HA_TOKEN}`,
-        "Content-Type": "application/json",
-      },
-      body,
-    });
+    const res = await fetch(url, { method: "POST", headers, body });
+    console.log(`HA ${action.path} -> ${res.status}`);
     return res.ok;
   } catch (e) {
-    console.log("logAction error:", e && e.message);
+    console.log("logAction error:", e && (e.message || e));
     return false;
   }
 }
