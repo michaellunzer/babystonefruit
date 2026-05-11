@@ -80,26 +80,60 @@ function showStatus(text, hint) {
 
 // ----- Networking ---------------------------------------------------------
 
-async function logAction(index) {
-  const action = ACTIONS[index];
-  const url = `${HA_URL.replace(/\/+$/, "")}/api/services/${action.path}`;
-  const body = JSON.stringify(Object.assign({ device_id: DEVICE_ID }, action.body));
+// Strip the https:// prefix from HA_URL to get just the host for
+// device.network.https.io. The Pebble HTTP client takes host + path
+// separately, not a full URL string.
+const HOST = HA_URL.replace(/^https?:\/\//, "").replace(/\/.*$/, "");
 
-  // pebbleproxy's fetch doesn't like a plain object for `headers`; pass
-  // entries as an array of [key, value] pairs (Headers-compatible form).
-  const headers = [
-    ["Authorization", `Bearer ${HA_TOKEN}`],
-    ["Content-Type", "application/json"],
-  ];
+function logAction(index) {
+  return new Promise((resolve) => {
+    const action = ACTIONS[index];
+    const path = `/api/services/${action.path}`;
+    const body = JSON.stringify(Object.assign({ device_id: DEVICE_ID }, action.body));
 
-  try {
-    const res = await fetch(url, { method: "POST", headers, body });
-    console.log(`HA ${action.path} -> ${res.status}`);
-    return res.ok;
-  } catch (e) {
-    console.log("logAction error:", e && (e.message || e));
-    return false;
-  }
+    const https = new device.network.https.io({
+      ...device.network.https,
+      host: HOST,
+    });
+
+    let status = 0;
+    let bodyPosition = 0;
+
+    https.request({
+      method: "POST",
+      path,
+      headers: new Map([
+        ["Authorization",  `Bearer ${HA_TOKEN}`],
+        ["Content-Type",   "application/json"],
+        ["Content-Length", body.length],
+      ]),
+      onHeaders(s) {
+        status = s;
+      },
+      onWritable(count) {
+        const remaining = body.length - bodyPosition;
+        const use = Math.min(count, remaining);
+        if (use > 0) {
+          this.write(ArrayBuffer.fromString(body.slice(bodyPosition, bodyPosition + use)));
+          bodyPosition += use;
+        }
+      },
+      onReadable(count) {
+        // Drain the response body (we don't use it; HA returns [] on success).
+        let offset = 0;
+        while (offset < count) {
+          const step = Math.min(128, count - offset);
+          this.read(step);
+          offset += step;
+        }
+      },
+      onDone(error) {
+        const ok = !error && status >= 200 && status < 300;
+        console.log(`HA ${action.path} -> ${status}${error ? " err:" + error : ""}`);
+        resolve(ok);
+      },
+    });
+  });
 }
 
 // ----- Buttons ------------------------------------------------------------
