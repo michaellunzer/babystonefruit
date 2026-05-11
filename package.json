@@ -8,17 +8,10 @@
     ],
     "name": "baby-stonefruit",
     "pebble": {
-        "capabilities": [
-            "configurable"
-        ],
+        "capabilities": [],
         "displayName": "Baby StoneFruit",
         "enableMultiJS": true,
-        "messageKeys": [
-            "action",
-            "type",
-            "result",
-            "message"
-        ],
+        "messageKeys": [],
         "projectType": "moddable",
         "resources": {
             "media": []
@@ -33,5 +26,5 @@
             "watchface": false
         }
     },
-    "version": "0.1.0"
+    "version": "0.2.0"
 }
