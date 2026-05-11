@@ -115,8 +115,7 @@ Pebble.addEventListener("appmessage", function (e) {
 });
 
 Pebble.addEventListener("showConfiguration", function () {
-  // TODO: replace with the real hosted URL of config/config.html (e.g. GitHub Pages).
-  var url = "https://michaellunzer.github.io/babystonefruit/config.html";
+  var url = "https://michaellunzer.github.io/babystonefruit/config/config.html";
   var current = encodeURIComponent(localStorage.getItem("clay-settings") || "{}");
   Pebble.openURL(url + "?current=" + current);
 });
