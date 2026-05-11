@@ -23,15 +23,19 @@ const COLORS = {
 // Detailed variants commented out — uncomment when finer logging is wanted.
 
 const ACTIONS = [
-  // { label: "Diaper: Wet",   action: "diaper_wet",   color: COLORS.diaper, image: 1 },
-  // { label: "Diaper: Dirty", action: "diaper_dirty", color: COLORS.diaper, image: 1 },
-  // { label: "Diaper: Dry",   action: "diaper_dry",   color: COLORS.diaper, image: 1 },
-  { label: "Diaper",      action: "diaper",    color: COLORS.diaper, image: 1 },
-  { label: "Bottle",      action: "bottle",    color: COLORS.bottle, image: 2 },
-  // { label: "Nurse Left",  action: "nurse_left",  color: COLORS.nurse, image: 3 },
-  // { label: "Nurse Right", action: "nurse_right", color: COLORS.nurse, image: 3 },
-  { label: "Nurse",       action: "nurse",     color: COLORS.nurse,  image: 3 },
-  { label: "End Nursing", action: "nurse_end", color: COLORS.nurse,  image: 4 },
+  // CloudPebble indexes resources in REVERSE of package.json declaration
+  // order, so Texture(1)=stop, (2)=nursing, (3)=bottle, (4)=poop. The image
+  // IDs below are flipped accordingly. If you change the resources block
+  // in package.json, re-verify these mappings.
+  // { label: "Diaper: Wet",   action: "diaper_wet",   color: COLORS.diaper, image: 4 },
+  // { label: "Diaper: Dirty", action: "diaper_dirty", color: COLORS.diaper, image: 4 },
+  // { label: "Diaper: Dry",   action: "diaper_dry",   color: COLORS.diaper, image: 4 },
+  { label: "Diaper",      action: "diaper",    color: COLORS.diaper, image: 4 },  // poop
+  { label: "Bottle",      action: "bottle",    color: COLORS.bottle, image: 3 },  // bottle
+  // { label: "Nurse Left",  action: "nurse_left",  color: COLORS.nurse, image: 2 },
+  // { label: "Nurse Right", action: "nurse_right", color: COLORS.nurse, image: 2 },
+  { label: "Nurse",       action: "nurse",     color: COLORS.nurse,  image: 2 },  // nursing
+  { label: "End Nursing", action: "nurse_end", color: COLORS.nurse,  image: 1 },  // stop
 ];
 
 const HINT_DEFAULT    = "Up/Down  •  Select";

@@ -31,7 +31,7 @@ function buildCall(action) {
     case "diaper":
       return {
         path: "huckleberry/log_diaper_both",
-        body: { pee_amount: "medium", poo_amount: "medium", color: "yellow", consistency: "solid" },
+        body: { pee_amount: "medium", poo_amount: "medium", color: "yellow", consistency: "runny" },
       };
     case "bottle":
       return {
