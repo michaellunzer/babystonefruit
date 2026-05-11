@@ -20,10 +20,7 @@
         "projectType": "moddable",
         "resources": {
             "media": [
-                { "type": "bitmap", "name": "IMAGE_DIAPER", "file": "img/poop.png" },
-                { "type": "bitmap", "name": "IMAGE_BOTTLE", "file": "img/bottle.png" },
-                { "type": "bitmap", "name": "IMAGE_NURSE",  "file": "img/nursing.png" },
-                { "type": "bitmap", "name": "IMAGE_STOP",   "file": "img/stop.png" }
+                { "type": "bitmap", "name": "IMAGE_ICONS", "file": "img/icons.png" }
             ]
         },
         "sdkVersion": "3",

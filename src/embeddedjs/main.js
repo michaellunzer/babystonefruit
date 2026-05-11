@@ -20,28 +20,30 @@ const COLORS = {
 
 // ----- Action catalog -----------------------------------------------------
 //
-// Each entry: label, action key (sent to pkjs), color, image id.
+// Each entry: label, action key (sent to pkjs), color, sprite-sheet x offset.
 // Detailed variants commented out — uncomment when finer logging is wanted.
 
+// All four emojis live in one sprite sheet (icons.png, 288x72, the only
+// declared resource). We crop a different 72x72 region per action via the
+// `iconX` offset. This avoids the unstable-per-resource-ID problem entirely:
+// there's only ever one Texture(1), and the icon shown is determined by the
+// x-offset in code, which we control directly.
+//
+// Sprite layout: [💩 poop | 🍼 bottle | 🤱 nursing | 🛑 stop]
+
+const ICON_W = 72;
+const ICON_H = 72;
+
 const ACTIONS = [
-  // Empirically the actual Texture mapping in this build is:
-  //   Texture(1) -> stop.png
-  //   Texture(2) -> bottle.png
-  //   Texture(3) -> nursing.png
-  //   Texture(4) -> poop.png
-  // That's NOT package.json declaration order (poop & stop are swapped) —
-  // probably because of how CloudPebble assigned IDs when these resources
-  // were added. If we ever re-import or rename them, verify the mapping
-  // by setting each action to a known image and reading the screen.
-  // { label: "Diaper: Wet",   action: "diaper_wet",   color: COLORS.diaper,   image: 4 },
-  // { label: "Diaper: Dirty", action: "diaper_dirty", color: COLORS.diaper,   image: 4 },
-  // { label: "Diaper: Dry",   action: "diaper_dry",   color: COLORS.diaper,   image: 4 },
-  { label: "Diaper",      action: "diaper",    color: COLORS.diaper,   image: 4 },  // poop
-  { label: "Bottle",      action: "bottle",    color: COLORS.bottle,   image: 2 },  // bottle
-  // { label: "Nurse Left",  action: "nurse_left",  color: COLORS.nurse,    image: 3 },
-  // { label: "Nurse Right", action: "nurse_right", color: COLORS.nurse,    image: 3 },
-  { label: "Nurse",       action: "nurse",     color: COLORS.nurse,    image: 3 },  // nursing
-  { label: "End Nursing", action: "nurse_end", color: COLORS.endNurse, image: 1 },  // stop
+  // { label: "Diaper: Wet",   action: "diaper_wet",   color: COLORS.diaper,   iconX: 0   },
+  // { label: "Diaper: Dirty", action: "diaper_dirty", color: COLORS.diaper,   iconX: 0   },
+  // { label: "Diaper: Dry",   action: "diaper_dry",   color: COLORS.diaper,   iconX: 0   },
+  { label: "Diaper",      action: "diaper",    color: COLORS.diaper,   iconX: 0   },  // poop
+  { label: "Bottle",      action: "bottle",    color: COLORS.bottle,   iconX: 72  },  // bottle
+  // { label: "Nurse Left",  action: "nurse_left",  color: COLORS.nurse,    iconX: 144 },
+  // { label: "Nurse Right", action: "nurse_right", color: COLORS.nurse,    iconX: 144 },
+  { label: "Nurse",       action: "nurse",     color: COLORS.nurse,    iconX: 144 },  // nursing
+  { label: "End Nursing", action: "nurse_end", color: COLORS.endNurse, iconX: 216 },  // stop
 ];
 
 const HINT_DEFAULT    = "Up/Down  •  Select";
@@ -68,11 +70,20 @@ function skinForIndex(i) {
   return skins.nurse;
 }
 
-function makeIconSkin(textureId) {
-  const tex = new Texture(textureId);
-  return new Skin({ texture: tex, width: tex.width, height: tex.height });
+// Single sprite sheet — crop with x offset to pick which emoji we show.
+const iconTexture = new Texture(1);
+function makeIconSkin(x) {
+  return new Skin({
+    texture: iconTexture,
+    x, y: 0, width: ICON_W, height: ICON_H,
+  });
 }
-const iconSkins = [null, makeIconSkin(1), makeIconSkin(2), makeIconSkin(3), makeIconSkin(4)];
+const iconSkins = {
+  0:   makeIconSkin(0),
+  72:  makeIconSkin(72),
+  144: makeIconSkin(144),
+  216: makeIconSkin(216),
+};
 
 const labelStyle = new Style({
   font: "bold 28px Gothic", color: "black", horizontal: "center", vertical: "middle",
@@ -98,7 +109,7 @@ const App = Application.template($ => ({
         Content($, {
           anchor: "icon",
           top: 50, bottom: 36, left: 0, right: 0,
-          skin: iconSkins[ACTIONS[selectedIndex].image],
+          skin: iconSkins[ACTIONS[selectedIndex].iconX],
         }),
         Label($, {
           anchor: "hint",
@@ -119,7 +130,7 @@ function render() {
   refs.main.string = a.label;
   refs.hint.string = HINT_DEFAULT;
   refs.bg.skin     = skinForIndex(selectedIndex);
-  refs.icon.skin   = iconSkins[a.image];
+  refs.icon.skin   = iconSkins[a.iconX];
 }
 
 function showStatus(text, hint) {
