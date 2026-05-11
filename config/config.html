@@ -5,27 +5,45 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Baby StoneFruit Settings</title>
 <style>
-  body { font-family: -apple-system, system-ui, sans-serif; margin: 0; padding: 24px; background: #f5f5f5; color: #222; }
-  h1 { font-size: 20px; margin: 0 0 8px; }
-  p.lead { margin: 0 0 24px; color: #666; font-size: 14px; }
-  label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; margin-top: 16px; color: #333; }
-  input { width: 100%; padding: 12px; font-size: 16px; border: 1px solid #ccc; border-radius: 8px; box-sizing: border-box; background: #fff; }
-  button { width: 100%; margin-top: 24px; padding: 14px; font-size: 16px; font-weight: 600; background: #ff6900; color: #fff; border: 0; border-radius: 8px; }
+  body { font-family: -apple-system, system-ui, sans-serif; margin: 0; padding: 24px; background: #f5f5f5; color: #222; max-width: 560px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  p.lead { margin: 0 0 20px; color: #666; font-size: 14px; }
+  details { background: #fff; border-radius: 8px; padding: 12px 16px; margin: 12px 0; border: 1px solid #e0e0e0; }
+  details summary { cursor: pointer; font-weight: 600; font-size: 14px; }
+  details ol { padding-left: 20px; }
+  details code { background: #f0f0f0; padding: 1px 6px; border-radius: 4px; font-size: 12px; }
+  label { display: block; font-size: 13px; font-weight: 600; margin: 16px 0 6px; color: #333; }
+  input { width: 100%; padding: 12px; font-size: 16px; border: 1px solid #ccc; border-radius: 8px; box-sizing: border-box; background: #fff; font-family: ui-monospace, monospace; }
+  input.text { font-family: inherit; }
+  small.hint { display: block; color: #888; font-size: 12px; margin-top: 4px; }
+  button { width: 100%; margin-top: 24px; padding: 14px; font-size: 16px; font-weight: 600; background: #ff6900; color: #fff; border: 0; border-radius: 8px; cursor: pointer; }
   button.cancel { background: #e0e0e0; color: #333; margin-top: 8px; }
-  small { color: #888; font-size: 12px; }
 </style>
 </head>
 <body>
   <h1>Baby StoneFruit</h1>
-  <p class="lead">Sign in with your Huckleberry account to log feedings and diaper changes from your Pebble.</p>
+  <p class="lead">Connects your Pebble watch to Huckleberry through your Home Assistant.</p>
 
-  <label for="email">Huckleberry email</label>
-  <input id="email" type="email" autocomplete="email" autocapitalize="none" autocorrect="off">
+  <details>
+    <summary>Setup help</summary>
+    <ol>
+      <li>Install the <strong>Huckleberry</strong> integration in Home Assistant via HACS, then add it under <em>Settings → Devices &amp; Services</em>.</li>
+      <li>Create a long-lived access token: <em>Profile → Security → Long-Lived Access Tokens → Create Token</em>.</li>
+      <li>Find your child's <strong>device ID</strong>: <em>Settings → Devices &amp; Services → Huckleberry</em>, click your child's device, and copy the device ID from the URL or device info.</li>
+      <li>Use your HA URL exactly as you reach it from your phone (e.g. <code>http://homeassistant.local:8123</code> at home, or your Nabu&nbsp;Casa URL anywhere).</li>
+    </ol>
+  </details>
 
-  <label for="password">Huckleberry password</label>
-  <input id="password" type="password" autocomplete="current-password">
+  <label for="haUrl">Home Assistant URL</label>
+  <input id="haUrl" class="text" type="url" placeholder="https://yourhome.ui.nabu.casa" autocapitalize="none" autocorrect="off">
+  <small class="hint">No trailing slash. HTTPS required if accessing remotely.</small>
 
-  <small>Credentials are stored only on your phone and sent to the proxy server over HTTPS to log events.</small>
+  <label for="haToken">Long-lived access token</label>
+  <input id="haToken" type="password" autocomplete="off">
+  <small class="hint">Generated under your HA profile. Stored only on your phone.</small>
+
+  <label for="haDeviceId">Child device ID</label>
+  <input id="haDeviceId" type="text" placeholder="abc123def456…">
 
   <button id="save" type="button">Save</button>
   <button id="cancel" type="button" class="cancel">Cancel</button>
@@ -37,21 +55,18 @@
   }
   var returnTo = getQueryParam("return_to") || "pebblejs://close#";
 
-  // Pre-fill from existing settings if relaunched.
   try {
     var existing = JSON.parse(getQueryParam("current") || "{}");
-    if (existing.huckleberryEmail && existing.huckleberryEmail.value) {
-      document.getElementById("email").value = existing.huckleberryEmail.value;
-    }
-    if (existing.huckleberryPassword && existing.huckleberryPassword.value) {
-      document.getElementById("password").value = existing.huckleberryPassword.value;
-    }
+    if (existing.haUrl)      document.getElementById("haUrl").value      = existing.haUrl.value      || "";
+    if (existing.haToken)    document.getElementById("haToken").value    = existing.haToken.value    || "";
+    if (existing.haDeviceId) document.getElementById("haDeviceId").value = existing.haDeviceId.value || "";
   } catch (e) {}
 
   document.getElementById("save").addEventListener("click", function () {
     var settings = {
-      huckleberryEmail: { value: document.getElementById("email").value.trim() },
-      huckleberryPassword: { value: document.getElementById("password").value }
+      haUrl:      { value: document.getElementById("haUrl").value.trim().replace(/\/+$/, "") },
+      haToken:    { value: document.getElementById("haToken").value.trim() },
+      haDeviceId: { value: document.getElementById("haDeviceId").value.trim() }
     };
     location.href = returnTo + encodeURIComponent(JSON.stringify(settings));
   });
