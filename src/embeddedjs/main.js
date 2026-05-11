@@ -1,8 +1,8 @@
 // Baby StoneFruit — runs on the Pebble watch (Moddable XS / Piu).
 //
-// UI: a centered label showing the current action (or "Child: <name>" when
-// multiple children are configured). Up/Down cycles items, Select fires
-// (or, for the child item, advances to the next child and persists it).
+// UI: a centered label showing the current action over a category-colored
+// background (matching Huckleberry's color palette). Up/Down cycles items,
+// Select fires (or, for the Child item, advances to the next child).
 // Back exits (Pebble system default).
 //
 // Networking: device.network.https.io routes through @moddable/pebbleproxy
@@ -14,26 +14,37 @@ import { HA_URL, HA_TOKEN, CHILDREN } from "credentials";
 
 // Pebble doesn't ship the Moddable Preference module, so child selection
 // is in-memory only — it resets to the first child each time the app
-// launches. (Acceptable for now; we can add AppMessage-based persistence
-// via pkjs later if it becomes annoying.)
+// launches.
 let childIndex = 0;
 const multipleChildren = CHILDREN.length > 1;
 
+// ----- Colors (Huckleberry palette) ---------------------------------------
+
+const COLORS = {
+  diaper: "#F4C53D",  // yellow
+  nurse:  "#FF7A4F",  // orange
+  bottle: "#A084E8",  // purple
+  child:  "#5BC8DD",  // cyan
+};
+
 // ----- Action catalog -----------------------------------------------------
+//
+// Detailed variants are commented out for now — we collapse diaper changes
+// to a single "Both" log and nursing to a no-side start. Uncomment to bring
+// the finer-grained options back into the menu.
 
 const ACTIONS = [
-  { label: "Diaper: Wet",    path: "huckleberry/log_diaper_pee",   body: { pee_amount: "medium" } },
-  { label: "Diaper: Dirty",  path: "huckleberry/log_diaper_poo",   body: { poo_amount: "medium", color: "yellow", consistency: "solid" } },
-  { label: "Diaper: Both",   path: "huckleberry/log_diaper_both",  body: { pee_amount: "medium", poo_amount: "medium", color: "yellow", consistency: "solid" } },
-  { label: "Diaper: Dry",    path: "huckleberry/log_diaper_dry",   body: {} },
-  { label: "Bottle (120ml)", path: "huckleberry/log_bottle",       body: { amount: 120.0, bottle_type: "formula", units: "ml" } },
-  { label: "Nurse Left",     path: "huckleberry/start_nursing",    body: { side: "left"  } },
-  { label: "Nurse Right",    path: "huckleberry/start_nursing",    body: { side: "right" } },
-  { label: "End Nursing",    path: "huckleberry/complete_nursing", body: {} },
+  // { label: "Diaper: Wet",   path: "huckleberry/log_diaper_pee",   body: { pee_amount: "medium" }, color: COLORS.diaper },
+  // { label: "Diaper: Dirty", path: "huckleberry/log_diaper_poo",   body: { poo_amount: "medium", color: "yellow", consistency: "solid" }, color: COLORS.diaper },
+  // { label: "Diaper: Dry",   path: "huckleberry/log_diaper_dry",   body: {}, color: COLORS.diaper },
+  { label: "Diaper",      path: "huckleberry/log_diaper_both",  body: { pee_amount: "medium", poo_amount: "medium", color: "yellow", consistency: "solid" }, color: COLORS.diaper },
+  { label: "Bottle",      path: "huckleberry/log_bottle",       body: { amount: 120.0, bottle_type: "formula", units: "ml" }, color: COLORS.bottle },
+  // { label: "Nurse Left",  path: "huckleberry/start_nursing",    body: { side: "left"  }, color: COLORS.nurse },
+  // { label: "Nurse Right", path: "huckleberry/start_nursing",    body: { side: "right" }, color: COLORS.nurse },
+  { label: "Nurse",       path: "huckleberry/start_nursing",    body: {}, color: COLORS.nurse },
+  { label: "End Nursing", path: "huckleberry/complete_nursing", body: {}, color: COLORS.nurse },
 ];
 
-// The "Switch child" slot is index 0 when multiple children exist; the
-// action list follows. Single-child mode: just the action list.
 const CHILD_ITEM_INDEX = multipleChildren ? 0 : -1;
 const ITEM_COUNT       = ACTIONS.length + (multipleChildren ? 1 : 0);
 
@@ -41,7 +52,7 @@ const HINT_DEFAULT     = "Up/Down  •  Select";
 const HINT_SWITCH      = "Select cycles child";
 const STATUS_FLASH_MS  = 700;
 
-let selectedIndex = multipleChildren ? 1 : 0;  // start on first action
+let selectedIndex = multipleChildren ? 1 : 0;
 let busy = false;
 
 function isChildSlot(i) { return i === CHILD_ITEM_INDEX; }
@@ -53,12 +64,30 @@ function labelFor(i) {
 function hintFor(i) {
   return isChildSlot(i) ? HINT_SWITCH : HINT_DEFAULT;
 }
+function colorFor(i) {
+  return isChildSlot(i) ? COLORS.child : actionAt(i).color;
+}
 
 // ----- UI -----------------------------------------------------------------
 
-const screenSkin = new Skin({ fill: "white" });
+// One Skin per category, swapped on the background container as the user
+// cycles through items. Cheaper than rebuilding the Skin every render.
+const skins = {};
+for (const key in COLORS) {
+  skins[key] = new Skin({ fill: COLORS[key] });
+}
+const statusSkin = new Skin({ fill: "white" });
+
+function skinForIndex(i) {
+  if (isChildSlot(i)) return skins.child;
+  const action = actionAt(i);
+  if (action.color === COLORS.diaper) return skins.diaper;
+  if (action.color === COLORS.bottle) return skins.bottle;
+  return skins.nurse;
+}
+
 const labelStyle = new Style({
-  font: "bold 24px Gothic",
+  font: "bold 28px Gothic",
   color: "black",
   horizontal: "center",
   vertical: "middle",
@@ -71,34 +100,43 @@ const hintStyle = new Style({
 });
 
 const App = Application.template($ => ({
-  skin: screenSkin,
+  skin: statusSkin,
   contents: [
-    Label($, {
-      anchor: "main",
-      left: 0, right: 0, top: 30, height: 60,
-      style: labelStyle,
-      string: labelFor(selectedIndex),
-    }),
-    Label($, {
-      anchor: "hint",
-      left: 0, right: 0, bottom: 20, height: 20,
-      style: hintStyle,
-      string: hintFor(selectedIndex),
+    Container($, {
+      anchor: "bg",
+      left: 0, right: 0, top: 0, bottom: 0,
+      skin: skinForIndex(selectedIndex),
+      contents: [
+        Label($, {
+          anchor: "main",
+          left: 0, right: 0, top: 30, height: 60,
+          style: labelStyle,
+          string: labelFor(selectedIndex),
+        }),
+        Label($, {
+          anchor: "hint",
+          left: 0, right: 0, bottom: 20, height: 20,
+          style: hintStyle,
+          string: hintFor(selectedIndex),
+        }),
+      ],
     }),
   ],
 }));
 
-const refs = { main: null, hint: null };
+const refs = { bg: null, main: null, hint: null };
 const app = new App(refs, { displayListLength: 4608 });
 
 function render() {
   refs.main.string = labelFor(selectedIndex);
   refs.hint.string = hintFor(selectedIndex);
+  refs.bg.skin     = skinForIndex(selectedIndex);
 }
 
-function showStatus(text, hint) {
+function showStatus(text, hint, useStatusBg) {
   refs.main.string = text;
   refs.hint.string = hint || "";
+  if (useStatusBg) refs.bg.skin = statusSkin;
 }
 
 // ----- Networking ---------------------------------------------------------
@@ -107,10 +145,10 @@ const HOST = HA_URL.replace(/^https?:\/\//, "").replace(/\/.*$/, "");
 
 function logAction(index) {
   return new Promise((resolve) => {
-    const action   = actionAt(index);
-    const child    = CHILDREN[childIndex];
-    const path     = `api/services/${action.path}`;        // no leading /
-    const body     = JSON.stringify(Object.assign({ device_id: child.deviceId }, action.body));
+    const action = actionAt(index);
+    const child  = CHILDREN[childIndex];
+    const path   = `api/services/${action.path}`;        // no leading /
+    const body   = JSON.stringify(Object.assign({ device_id: child.deviceId }, action.body));
 
     const https = new device.network.https.io({
       ...device.network.https,
@@ -118,7 +156,6 @@ function logAction(index) {
     });
 
     let status = 0;
-    let lastError = null;
     let bodyPosition = 0;
 
     https.request({
@@ -147,10 +184,9 @@ function logAction(index) {
         }
       },
       onDone(error) {
-        lastError = error || null;
         const ok = !error && status >= 200 && status < 300;
         console.log(`HA ${action.path} -> ${status}${error ? " err:" + error : ""}`);
-        resolve({ ok, status, error: lastError });
+        resolve({ ok, status, error: error || null });
       },
     });
   });
@@ -184,16 +220,14 @@ new Button({
     }
 
     busy = true;
-    showStatus("Logging...", "");
+    showStatus("Logging...", "", true);
     logAction(selectedIndex).then(result => {
       if (result.ok) {
-        showStatus("Logged", HINT_DEFAULT);
+        showStatus("Logged", HINT_DEFAULT, true);
       } else if (result.status) {
-        // Server responded with non-2xx; show the HTTP code.
-        showStatus(`Error ${result.status}`, "Select to retry");
+        showStatus(`Error ${result.status}`, "Select to retry", true);
       } else {
-        // No HTTP response (network / phone disconnected / TLS failure).
-        showStatus("Network err", "Select to retry");
+        showStatus("Network err", "Select to retry", true);
       }
       setTimeout(() => {
         busy = false;
