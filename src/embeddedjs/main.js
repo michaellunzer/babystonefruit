@@ -1,9 +1,12 @@
 // Baby StoneFruit — runs on the Pebble watch (Moddable XS / Piu).
 //
-// UI: a centered label + emoji icon over a category-colored background.
-// Up/Down cycles items, Select sends the action to pkjs, which makes the
-// actual HTTPS call to Home Assistant using credentials from CloudPebble
-// environment variables. Back exits.
+// UI: label + emoji icon over a category-colored background, with a
+// "X ago" line beneath the icon (red when > 1 hour). When a nursing
+// session is active, the time line becomes a live count-up timer and
+// Select pauses / resumes via the Huckleberry HA services.
+//
+// Networking: AppMessage to pkjs, which makes HTTPS calls to Home
+// Assistant using credentials from CloudPebble environment variables.
 
 import {} from "piu/MC";
 import Button  from "pebble/button";
@@ -12,28 +15,19 @@ import Message from "pebble/message";
 // ----- Colors (Huckleberry palette) ---------------------------------------
 
 const COLORS = {
-  diaper:    "#F4C53D",  // yellow
-  nurse:     "#F69EB1",  // soft pink — start action, distinct from End Nursing
-  endNurse:  "#FF7A4F",  // red/coral — stop action, matches stop sign
-  bottle:    "#A084E8",  // purple
+  diaper:    "#F4C53D",
+  nurse:     "#F69EB1",
+  endNurse:  "#FF7A4F",
+  bottle:    "#A084E8",
 };
+
+const TEXT_RED = "#B12525";
 
 // ----- Image resource constants -------------------------------------------
 //
 // new Texture(N) on Pebble takes a numeric resource ID — names like
-// "IMAGE_DIAPER" can't be passed to it directly. To keep the code readable
-// (and to make a wrong mapping a one-line fix), we declare named constants
-// here that map each identifier to its actual runtime ID. If you ever
-// re-import resources in CloudPebble and the icons come out swapped, edit
-// just the integers on the right-hand side below.
-//
-// Current empirical mapping (verified by viewing the watch screen):
-//   Texture(1) -> poop.png   (declared as IMAGE_DIAPER)
-//   Texture(2) -> bottle.png (IMAGE_BOTTLE)
-//   Texture(3) -> nursing.png (IMAGE_NURSE)
-//   Texture(4) -> stop.png   (IMAGE_STOP)
-// i.e. package.json declaration order, 1-indexed. (Earlier PRs flipped 1 and
-// 4 based on a misreading of screenshots; corrected here.)
+// "IMAGE_DIAPER" can't be passed to it directly. The named constants below
+// map identifiers to their actual runtime IDs.
 
 const IMAGE_DIAPER = 1;
 const IMAGE_BOTTLE = 2;
@@ -41,30 +35,81 @@ const IMAGE_NURSE  = 3;
 const IMAGE_STOP   = 4;
 
 // ----- Action catalog -----------------------------------------------------
-//
-// Each entry: label, action key (sent to pkjs), color, image id.
-// Detailed variants commented out — uncomment when finer logging is wanted.
 
 const ACTIONS = [
-  // { label: "Diaper: Wet",   action: "diaper_wet",   color: COLORS.diaper,   image: IMAGE_DIAPER },
-  // { label: "Diaper: Dirty", action: "diaper_dirty", color: COLORS.diaper,   image: IMAGE_DIAPER },
-  // { label: "Diaper: Dry",   action: "diaper_dry",   color: COLORS.diaper,   image: IMAGE_DIAPER },
-  { label: "Diaper",      action: "diaper",    color: COLORS.diaper,   image: IMAGE_DIAPER },
-  { label: "Bottle",      action: "bottle",    color: COLORS.bottle,   image: IMAGE_BOTTLE },
-  // { label: "Nurse Left",  action: "nurse_left",  color: COLORS.nurse,    image: IMAGE_NURSE  },
-  // { label: "Nurse Right", action: "nurse_right", color: COLORS.nurse,    image: IMAGE_NURSE  },
-  { label: "Nurse",       action: "nurse",     color: COLORS.nurse,    image: IMAGE_NURSE  },
-  { label: "End Nursing", action: "nurse_end", color: COLORS.endNurse, image: IMAGE_STOP   },
+  { label: "Diaper",      action: "diaper",    color: COLORS.diaper,   image: IMAGE_DIAPER, kind: "diaper" },
+  { label: "Bottle",      action: "bottle",    color: COLORS.bottle,   image: IMAGE_BOTTLE, kind: "bottle" },
+  { label: "Nurse",       action: "nurse",     color: COLORS.nurse,    image: IMAGE_NURSE,  kind: "nurse"  },
+  { label: "End Nursing", action: "nurse_end", color: COLORS.endNurse, image: IMAGE_STOP,   kind: "nurseEnd" },
 ];
 
-const HINT_DEFAULT    = "Up/Down  •  Select";
+const HINT_DEFAULT  = "Up/Down  •  Select";
+const HINT_PAUSE    = "Select to pause";
+const HINT_RESUME   = "Select to resume";
 const STATUS_FLASH_MS = 700;
+const RED_THRESHOLD_S = 3600;     // > 1 hour ago turns the line red
+
+// ----- App state ----------------------------------------------------------
 
 let selectedIndex = 0;
 let busy = false;
-let pendingResolve = null;   // promise resolver for the current AppMessage round-trip
+let pendingResolve = null;
 
-// ----- UI -----------------------------------------------------------------
+// Updated by pkjs fetch_state replies. 0 = unknown.
+const state = {
+  lastDiaper:    0,
+  lastBottle:    0,
+  lastNurse:     0,    // start time of the previous (completed) nursing session
+  nursingState:  "none",   // "active" | "paused" | "none" | "unknown"
+  nursingStart:  0,        // start time of the current active session
+};
+
+// ----- Time helpers -------------------------------------------------------
+
+function nowSec() {
+  return Math.floor(Date.now() / 1000);
+}
+
+function agoText(epoch) {
+  if (!epoch) return "";
+  const diff = nowSec() - epoch;
+  if (diff < 60)    return "just now";
+  if (diff < 3600)  return Math.floor(diff / 60) + " min ago";
+  if (diff < 86400) {
+    const h = Math.floor(diff / 3600);
+    return h + (h === 1 ? " hour ago" : " hours ago");
+  }
+  const d = Math.floor(diff / 86400);
+  return d + (d === 1 ? " day ago" : " days ago");
+}
+
+function elapsedText(epoch) {
+  if (!epoch) return "0:00";
+  const diff = Math.max(0, nowSec() - epoch);
+  const h = Math.floor(diff / 3600);
+  const m = Math.floor((diff % 3600) / 60);
+  const s = diff % 60;
+  const ss = s < 10 ? "0" + s : "" + s;
+  if (h > 0) {
+    const mm = m < 10 ? "0" + m : "" + m;
+    return h + ":" + mm + ":" + ss;
+  }
+  return m + ":" + ss;
+}
+
+function lastTimestampFor(kind) {
+  if (kind === "diaper")    return state.lastDiaper;
+  if (kind === "bottle")    return state.lastBottle;
+  if (kind === "nurse")     return state.lastNurse;
+  if (kind === "nurseEnd")  return state.lastNurse;
+  return 0;
+}
+
+function isNurseSelected() {
+  return ACTIONS[selectedIndex].kind === "nurse";
+}
+
+// ----- UI ----------------------------------------------------------------
 
 const skins = {
   diaper:   new Skin({ fill: COLORS.diaper   }),
@@ -87,12 +132,10 @@ function makeIconSkin(textureId) {
 }
 const iconSkins = [null, makeIconSkin(1), makeIconSkin(2), makeIconSkin(3), makeIconSkin(4)];
 
-const labelStyle = new Style({
-  font: "bold 28px Gothic", color: "black", horizontal: "center", vertical: "middle",
-});
-const hintStyle = new Style({
-  font: "14px Gothic", color: "black", horizontal: "center", vertical: "middle",
-});
+const labelStyle    = new Style({ font: "bold 24px Gothic", color: "black",  horizontal: "center", vertical: "middle" });
+const timeStyleBk   = new Style({ font: "bold 18px Gothic", color: "black",  horizontal: "center", vertical: "middle" });
+const timeStyleRed  = new Style({ font: "bold 18px Gothic", color: TEXT_RED, horizontal: "center", vertical: "middle" });
+const hintStyle     = new Style({ font: "14px Gothic",      color: "black",  horizontal: "center", vertical: "middle" });
 
 const App = Application.template($ => ({
   skin: skins.status,
@@ -104,18 +147,24 @@ const App = Application.template($ => ({
       contents: [
         Label($, {
           anchor: "main",
-          left: 0, right: 0, top: 10, height: 36,
+          left: 0, right: 0, top: 6, height: 28,
           style: labelStyle,
           string: ACTIONS[selectedIndex].label,
         }),
         Content($, {
           anchor: "icon",
-          top: 50, bottom: 36, left: 0, right: 0,
+          left: 0, right: 0, top: 36, height: 72,
           skin: iconSkins[ACTIONS[selectedIndex].image],
         }),
         Label($, {
+          anchor: "time",
+          left: 0, right: 0, top: 110, height: 20,
+          style: timeStyleBk,
+          string: "",
+        }),
+        Label($, {
           anchor: "hint",
-          left: 0, right: 0, bottom: 8, height: 20,
+          left: 0, right: 0, bottom: 4, height: 16,
           style: hintStyle,
           string: HINT_DEFAULT,
         }),
@@ -124,39 +173,92 @@ const App = Application.template($ => ({
   ],
 }));
 
-const refs = { bg: null, main: null, icon: null, hint: null };
+const refs = { bg: null, main: null, icon: null, time: null, hint: null };
 const app = new App(refs, { displayListLength: 4608 });
 
-function render() {
+// Update the time line + hint based on the currently selected action and
+// the latest known state. Called on selection change, after fetch_state,
+// and once a second by the ticker.
+function updateTimeLine() {
+  const a = ACTIONS[selectedIndex];
+
+  // Active nursing session takes over the time line (and hint).
+  if (a.kind === "nurse" && state.nursingState === "active") {
+    refs.time.style  = timeStyleBk;
+    refs.time.string = elapsedText(state.nursingStart);
+    refs.hint.string = HINT_PAUSE;
+    return;
+  }
+  if (a.kind === "nurse" && state.nursingState === "paused") {
+    refs.time.style  = timeStyleBk;
+    refs.time.string = "Paused " + elapsedText(state.nursingStart);
+    refs.hint.string = HINT_RESUME;
+    return;
+  }
+
+  // Default: "X ago" for the action's last occurrence. Red if > 1 hour.
+  refs.hint.string = HINT_DEFAULT;
+  const ts = lastTimestampFor(a.kind);
+  if (!ts) {
+    refs.time.string = "";
+    return;
+  }
+  const diff = nowSec() - ts;
+  refs.time.style  = diff > RED_THRESHOLD_S ? timeStyleRed : timeStyleBk;
+  refs.time.string = agoText(ts);
+}
+
+function renderAction() {
   const a = ACTIONS[selectedIndex];
   refs.main.string = a.label;
-  refs.hint.string = HINT_DEFAULT;
   refs.bg.skin     = skinForIndex(selectedIndex);
   refs.icon.skin   = iconSkins[a.image];
+  updateTimeLine();
 }
 
 function showStatus(text, hint) {
   refs.main.string = text;
+  refs.time.string = "";
   refs.hint.string = hint || "";
   refs.bg.skin     = skins.status;
   refs.icon.skin   = null;
 }
 
+// Tick the time line every second so "X ago" and the active timer stay
+// current without re-fetching from HA.
+let tickHandle = null;
+function startTicker() {
+  if (tickHandle !== null) return;
+  tickHandle = setInterval(() => {
+    if (!busy) updateTimeLine();
+  }, 1000);
+}
+
 // ----- AppMessage --------------------------------------------------------
-//
-// pebble/message reads its callbacks from the constructor options, not
-// from properties assigned after construction — so onWritable HAS to be
-// declared inline. Track writability ourselves so a Select press that
-// happens before the channel becomes writable still gets delivered.
 
 let writable = false;
 const outbox = [];
 
 const message = new Message({
-  keys: ["ACTION", "RESULT", "STATUS", "MESSAGE"],
+  keys: ["ACTION", "RESULT", "STATUS", "MESSAGE",
+         "LAST_DIAPER", "LAST_BOTTLE",
+         "NURSING_STATE", "NURSING_START", "NURSING_LAST"],
   onReadable() {
     const msg = this.read();
     const result = msg.get("RESULT");
+
+    if (result === "state") {
+      state.lastDiaper   = msg.get("LAST_DIAPER")   || 0;
+      state.lastBottle   = msg.get("LAST_BOTTLE")   || 0;
+      state.lastNurse    = msg.get("NURSING_LAST")  || 0;
+      state.nursingState = msg.get("NURSING_STATE") || "none";
+      state.nursingStart = msg.get("NURSING_START") || 0;
+      console.log(`watch <- state diaper=${state.lastDiaper} bottle=${state.lastBottle} nursing=${state.nursingState}`);
+      if (!busy) updateTimeLine();
+      return;
+    }
+
+    // "ok" or "err" reply to a log action.
     const status = msg.get("STATUS");
     console.log(`watch <- pkjs RESULT=${result} STATUS=${status}`);
     if (pendingResolve) {
@@ -169,27 +271,73 @@ const message = new Message({
     writable = true;
     while (outbox.length) {
       const m = outbox.shift();
-      console.log(`watch -> pkjs ACTION=${m.get("ACTION")}`);
       this.write(m);
     }
   },
 });
 
-function sendAction(action) {
+function send(action, awaitReply) {
   return new Promise((resolve) => {
-    pendingResolve = resolve;
+    if (awaitReply) pendingResolve = resolve;
+    else            resolve(null);   // fire-and-forget
     const m = new Map();
     m.set("ACTION", action);
-    if (writable) {
-      console.log(`watch -> pkjs ACTION=${action}`);
-      message.write(m);
-    } else {
-      outbox.push(m);
-    }
+    if (writable) message.write(m);
+    else          outbox.push(m);
   });
 }
 
+function fetchState() {
+  send("fetch_state", false);
+}
+
 // ----- Buttons -----------------------------------------------------------
+
+function handleSelect() {
+  const a = ACTIONS[selectedIndex];
+
+  // Active nursing session on the Nurse screen -> pause/resume.
+  if (a.kind === "nurse") {
+    if (state.nursingState === "active") {
+      busy = true;
+      showStatus("Pausing...", "");
+      send("pause_nursing", true).then(result => {
+        if (result.ok) state.nursingState = "paused";
+        finishStatus(result);
+      });
+      return;
+    }
+    if (state.nursingState === "paused") {
+      busy = true;
+      showStatus("Resuming...", "");
+      send("resume_nursing", true).then(result => {
+        if (result.ok) state.nursingState = "active";
+        finishStatus(result);
+      });
+      return;
+    }
+  }
+
+  // Default: log the action normally.
+  busy = true;
+  showStatus("Logging...", "");
+  send(a.action, true).then(result => finishStatus(result));
+}
+
+function finishStatus(result) {
+  if (result.ok) {
+    showStatus("Logged", HINT_DEFAULT);
+    fetchState();   // refresh "X ago" lines and nursing state after a write
+  } else if (result.status) {
+    showStatus(`Error ${result.status}`, "Select to retry");
+  } else {
+    showStatus("Network err", "Select to retry");
+  }
+  setTimeout(() => {
+    busy = false;
+    renderAction();
+  }, STATUS_FLASH_MS);
+}
 
 new Button({
   types: ["select", "up", "down"],
@@ -199,31 +347,23 @@ new Button({
 
     if (type === "up") {
       selectedIndex = (selectedIndex - 1 + ACTIONS.length) % ACTIONS.length;
-      render();
+      renderAction();
       return;
     }
     if (type === "down") {
       selectedIndex = (selectedIndex + 1) % ACTIONS.length;
-      render();
+      renderAction();
       return;
     }
 
-    busy = true;
-    showStatus("Logging...", "");
-    sendAction(ACTIONS[selectedIndex].action).then(result => {
-      if (result.ok) {
-        showStatus("Logged", HINT_DEFAULT);
-      } else if (result.status) {
-        showStatus(`Error ${result.status}`, "Select to retry");
-      } else {
-        showStatus("Network err", "Select to retry");
-      }
-      setTimeout(() => {
-        busy = false;
-        render();
-      }, STATUS_FLASH_MS);
-    });
+    handleSelect();
   },
 });
+
+// ----- Boot --------------------------------------------------------------
+
+renderAction();
+startTicker();
+fetchState();
 
 export default app;
