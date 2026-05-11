@@ -1,14 +1,14 @@
 # Baby StoneFruit
 
-Quick-log feeding and diaper changes to [Huckleberry](https://huckleberrycare.com/) from a Pebble watch — by way of your own Home Assistant.
+Quick-log feedings and diaper changes to [Huckleberry](https://huckleberrycare.com/) from a Pebble watch — via your own Home Assistant.
 
 ## Architecture
 
 ```
-Pebble watch (embeddedjs/main.js)
-    │  AppMessage {action, type}
+Pebble watch (embeddedjs/main.js, Moddable XS / Piu)
+    │  fetch()   — bridged through @moddable/pebbleproxy
     ▼
-Phone companion (pkjs/index.js)
+Phone (pkjs/index.js)
     │  HTTPS POST  /api/services/huckleberry/<service>
     │  Authorization: Bearer <long-lived token>
     ▼
@@ -18,44 +18,38 @@ Home Assistant (with the Huckleberry HACS integration)
 Huckleberry / Firestore
 ```
 
-No custom server to deploy. The watch never holds credentials — your Home
-Assistant token + child device ID live only in Clay settings on your phone.
+No custom server, no AppMessage protocol — the watch calls Home Assistant
+directly through the phone's network.
+
+## UI
+
+A single screen on the watch:
+
+| Button | Action |
+|---|---|
+| **Up** | Previous action in the list |
+| **Down** | Next action in the list |
+| **Select** | Log the current action |
+| **Back** | Exit the app |
+
+Actions cycle through diaper changes (Wet / Dirty / Both / Dry), Bottle (120 ml
+formula), Nurse Left / Right, and End Nursing. Each maps to one HA service
+under the `huckleberry` integration.
 
 ## Layout
 
-- `src/embeddedjs/main.js` — watch UI (two-level menu, runs on Moddable XS)
-- `src/pkjs/index.js` — phone companion (translates AppMessage → HA REST call)
-- `config/config.html` — settings page (HA URL, token, device ID)
+- `src/embeddedjs/main.js` — watch app (Piu UI, button input, HTTP)
+- `src/embeddedjs/credentials.js` — **gitignored**, holds your HA URL/token/device ID
+- `src/embeddedjs/credentials.js.example` — template for `credentials.js`
+- `src/pkjs/index.js` — phone companion, just the pebbleproxy bridge
 
 ## Setup
 
-1. **Install the Huckleberry integration in Home Assistant** via [HACS](https://hacs.xyz/)
-   ([Woyken/huckleberry-homeassistant](https://github.com/Woyken/huckleberry-homeassistant)).
-   Add it under *Settings → Devices & Services* and sign in with your Huckleberry
-   email / password (stored only in your HA instance).
-2. **Create a long-lived access token** in HA under *Profile → Security → Long-Lived Access Tokens*.
-3. **Find your child's device ID** under *Settings → Devices & Services → Huckleberry*.
-4. **Build via CloudPebble** (this Moddable project) and sideload onto your watch.
-5. In the Pebble phone app, open the gear icon for Baby StoneFruit and enter:
-   - Home Assistant URL (e.g. `https://yourhome.ui.nabu.casa`)
-   - Long-lived access token
-   - Child device ID
-
-## Watch UI
-
-```
-Main
-├── Feeding
-│   ├── Bottle (120ml)        → huckleberry.log_bottle
-│   ├── Nurse Left            → huckleberry.start_nursing  side=left
-│   ├── Nurse Right           → huckleberry.start_nursing  side=right
-│   └── End Nursing           → huckleberry.complete_nursing
-└── Diaper
-    ├── Wet                   → huckleberry.log_diaper_pee
-    ├── Dirty                 → huckleberry.log_diaper_poo
-    ├── Both                  → huckleberry.log_diaper_both
-    └── Dry                   → huckleberry.log_diaper_dry
-```
+1. Install the [Huckleberry HACS integration](https://github.com/Woyken/huckleberry-homeassistant) in Home Assistant and configure it with your Huckleberry account.
+2. Create a long-lived access token in HA: *Profile → Security → Long-Lived Access Tokens*.
+3. Find the child device ID: *Settings → Devices & Services → Huckleberry → click your child → copy device ID*.
+4. In CloudPebble, open this project. Create a new file at `src/embeddedjs/credentials.js` (copy from `credentials.js.example`) and fill in your three values. **Never commit this file.**
+5. Compile and install to your watch.
 
 ## Targets
 
