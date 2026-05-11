@@ -12,9 +12,10 @@ import Message from "pebble/message";
 // ----- Colors (Huckleberry palette) ---------------------------------------
 
 const COLORS = {
-  diaper: "#F4C53D",
-  nurse:  "#FF7A4F",
-  bottle: "#A084E8",
+  diaper:    "#F4C53D",  // yellow
+  nurse:     "#F69EB1",  // soft pink — start action, distinct from End Nursing
+  endNurse:  "#FF7A4F",  // red/coral — stop action, matches stop sign
+  bottle:    "#A084E8",  // purple
 };
 
 // ----- Action catalog -----------------------------------------------------
@@ -23,19 +24,21 @@ const COLORS = {
 // Detailed variants commented out — uncomment when finer logging is wanted.
 
 const ACTIONS = [
-  // CloudPebble indexes resources in REVERSE of package.json declaration
-  // order, so Texture(1)=stop, (2)=nursing, (3)=bottle, (4)=poop. The image
-  // IDs below are flipped accordingly. If you change the resources block
-  // in package.json, re-verify these mappings.
-  // { label: "Diaper: Wet",   action: "diaper_wet",   color: COLORS.diaper, image: 4 },
-  // { label: "Diaper: Dirty", action: "diaper_dirty", color: COLORS.diaper, image: 4 },
-  // { label: "Diaper: Dry",   action: "diaper_dry",   color: COLORS.diaper, image: 4 },
-  { label: "Diaper",      action: "diaper",    color: COLORS.diaper, image: 4 },  // poop
-  { label: "Bottle",      action: "bottle",    color: COLORS.bottle, image: 3 },  // bottle
-  // { label: "Nurse Left",  action: "nurse_left",  color: COLORS.nurse, image: 2 },
-  // { label: "Nurse Right", action: "nurse_right", color: COLORS.nurse, image: 2 },
-  { label: "Nurse",       action: "nurse",     color: COLORS.nurse,  image: 2 },  // nursing
-  { label: "End Nursing", action: "nurse_end", color: COLORS.nurse,  image: 1 },  // stop
+  // Texture IDs follow package.json declaration order:
+  //   1 = IMAGE_DIAPER (poop)
+  //   2 = IMAGE_BOTTLE (baby bottle)
+  //   3 = IMAGE_NURSE  (nursing)
+  //   4 = IMAGE_STOP   (stop sign)
+  // If you reorder the resources block in package.json, re-verify these.
+  // { label: "Diaper: Wet",   action: "diaper_wet",   color: COLORS.diaper,   image: 1 },
+  // { label: "Diaper: Dirty", action: "diaper_dirty", color: COLORS.diaper,   image: 1 },
+  // { label: "Diaper: Dry",   action: "diaper_dry",   color: COLORS.diaper,   image: 1 },
+  { label: "Diaper",      action: "diaper",    color: COLORS.diaper,   image: 1 },  // poop
+  { label: "Bottle",      action: "bottle",    color: COLORS.bottle,   image: 2 },  // bottle
+  // { label: "Nurse Left",  action: "nurse_left",  color: COLORS.nurse,    image: 3 },
+  // { label: "Nurse Right", action: "nurse_right", color: COLORS.nurse,    image: 3 },
+  { label: "Nurse",       action: "nurse",     color: COLORS.nurse,    image: 3 },  // nursing
+  { label: "End Nursing", action: "nurse_end", color: COLORS.endNurse, image: 4 },  // stop
 ];
 
 const HINT_DEFAULT    = "Up/Down  •  Select";
@@ -48,15 +51,17 @@ let pendingResolve = null;   // promise resolver for the current AppMessage roun
 // ----- UI -----------------------------------------------------------------
 
 const skins = {
-  diaper: new Skin({ fill: COLORS.diaper }),
-  nurse:  new Skin({ fill: COLORS.nurse  }),
-  bottle: new Skin({ fill: COLORS.bottle }),
-  status: new Skin({ fill: "white" }),
+  diaper:   new Skin({ fill: COLORS.diaper   }),
+  nurse:    new Skin({ fill: COLORS.nurse    }),
+  endNurse: new Skin({ fill: COLORS.endNurse }),
+  bottle:   new Skin({ fill: COLORS.bottle   }),
+  status:   new Skin({ fill: "white" }),
 };
 function skinForIndex(i) {
   const c = ACTIONS[i].color;
-  if (c === COLORS.diaper) return skins.diaper;
-  if (c === COLORS.bottle) return skins.bottle;
+  if (c === COLORS.diaper)   return skins.diaper;
+  if (c === COLORS.bottle)   return skins.bottle;
+  if (c === COLORS.endNurse) return skins.endNurse;
   return skins.nurse;
 }
 
