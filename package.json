@@ -15,7 +15,12 @@
             "ACTION",
             "RESULT",
             "STATUS",
-            "MESSAGE"
+            "MESSAGE",
+            "LAST_DIAPER",
+            "LAST_BOTTLE",
+            "NURSING_STATE",
+            "NURSING_START",
+            "NURSING_LAST"
         ],
         "projectType": "moddable",
         "resources": {
