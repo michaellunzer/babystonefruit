@@ -144,6 +144,29 @@ Huckleberry / Firestore
 - **Phone ↔ HA** uses regular `XMLHttpRequest` (the phone has real browser APIs; the watch does not).
 - **Last-time discovery** uses HA's `device_entities()` template function to find the configured child's `*_diaper`, `*_bottle`, `*_nursing` sensors — no extra env vars needed, and stale `*_last_*` entities from older integration versions are skipped via a negative-lookbehind regex.
 
+## Why does this need Home Assistant?
+
+Huckleberry's backend is **Google Cloud Firestore**, which is accessed over **gRPC** (HTTP/2 with protobuf framing). There's no public REST endpoint to call. Every working library out there — including the Python [`huckleberry-api`](https://pypi.org/project/huckleberry-api/) this project ultimately relies on — goes through Firebase's gRPC SDK.
+
+The Pebble JS environment can't speak gRPC, on either side of the bridge:
+
+- The **watch** runs Moddable XS — a small embedded JS runtime. App size budget is tiny, the network stack is bridged through the phone, and the module system is custom (no `npm`). gRPC-web and the Firebase JS SDK are both far too large and don't fit anyway.
+- The **phone companion** (PebbleKit JS / `pkjs`) is a sandboxed JS context with browser-ish APIs (`XMLHttpRequest`, `fetch`). It can do plain HTTPS to anything, but it can't load the Firebase SDK either (size + bundling) and there's no native gRPC stack.
+
+So something else has to translate "HTTPS request the phone *can* make" into "gRPC call to Firestore". Pretty much anything that runs Python works for this — an earlier prototype of this app used a tiny custom Flask proxy that wrapped `huckleberry-api` directly. Home Assistant happens to be a particularly good fit because:
+
+1. It runs Python, so [`huckleberry-api`](https://pypi.org/project/huckleberry-api/) and the Firebase SDK Just Work.
+2. It already exposes a clean **HTTPS REST API** that the Pebble companion can call.
+3. There's already a maintained integration — [`Woyken/huckleberry-homeassistant`](https://github.com/Woyken/huckleberry-homeassistant) — that wraps `huckleberry-api`, polls Firestore in the background, exposes `sensor.*_diaper` / `*_bottle` / `*_nursing` entities, and registers services like `huckleberry.log_diaper_both` and `huckleberry.pause_nursing`. The watch just calls those services over HTTPS.
+
+The chain *watch → phone → Home Assistant → Huckleberry* looks indirect on the diagram, but every hop does something the next one can't.
+
+### Alternatives if you don't already run Home Assistant
+
+Any small Python service exposing HTTPS works as a drop-in replacement for HA in the chain. The earliest prototype here was a Flask app that hosted `huckleberry-api` directly and exposed routes like `POST /diaper`. If that's appealing — you don't want a full HA install just for this — the source history of [PR #11 and earlier](https://github.com/michaellunzer/babystonefruit/pulls?q=is%3Apr+is%3Aclosed) has the Flask prototype. Updating `pkjs/index.js` to point at your proxy's URLs instead of HA service paths is a small change.
+
+> **If I have something wrong here**, please open an issue. I'd love to know if there's a way to talk to Huckleberry directly from Pebble JS — that would simplify everything.
+
 ## Repository layout
 
 ```
