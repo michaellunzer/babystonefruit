@@ -20,7 +20,8 @@
             "LAST_BOTTLE",
             "NURSING_STATE",
             "NURSING_START",
-            "NURSING_LAST"
+            "NURSING_LAST",
+            "NURSING_ELAPSED"
         ],
         "projectType": "moddable",
         "resources": {

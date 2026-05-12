@@ -19,11 +19,13 @@
 //   State snapshot (used to render "X ago" labels and the nursing timer):
 //     Watch -> Phone: { ACTION: "fetch_state" }
 //     Phone -> Watch: { RESULT: "state",
-//                       LAST_DIAPER:   <epoch seconds, 0 if unknown>,
-//                       LAST_BOTTLE:   <epoch seconds, 0 if unknown>,
-//                       NURSING_STATE: "active" | "paused" | "none",
-//                       NURSING_START: <epoch secs of current session, 0 if none>,
-//                       NURSING_LAST:  <epoch secs of previous session start, 0 if none> }
+//                       LAST_DIAPER:     <epoch seconds, 0 if unknown>,
+//                       LAST_BOTTLE:     <epoch seconds, 0 if unknown>,
+//                       NURSING_STATE:   "active" | "paused" | "none",
+//                       NURSING_START:   <epoch secs of current session, 0 if none>,
+//                       NURSING_LAST:    <epoch secs of previous session start, 0 if none>,
+//                       NURSING_ELAPSED: <active feeding seconds, frozen value
+//                                         from HA — sum of left+right durations> }
 
 const moddableProxy = require("@moddable/pebbleproxy");
 
@@ -68,6 +70,18 @@ function isoToEpoch(s) {
   if (s === "unknown" || s === "unavailable" || s === "none" || s === "None") return 0;
   const ms = Date.parse(s);
   return isNaN(ms) ? 0 : Math.floor(ms / 1000);
+}
+
+// Parse an ISO-8601 duration like "PT5M30S" or "PT1H2M3S" into seconds.
+function isoDurationToSec(s) {
+  if (!s || typeof s !== "string") return 0;
+  if (s === "unknown" || s === "unavailable" || s === "none" || s === "None") return 0;
+  const m = s.match(/^P(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?)?$/);
+  if (!m) return 0;
+  const h   = parseInt(m[1] || "0", 10);
+  const min = parseInt(m[2] || "0", 10);
+  const sec = parseFloat(m[3] || "0");
+  return h * 3600 + min * 60 + Math.floor(sec);
 }
 
 function envOk(replyOnFail) {
@@ -123,7 +137,9 @@ function fetchState() {
       "\"bottle\": \"{{ states(bottle) }}\"," +
       "\"nursing\": \"{{ states(nursing) }}\"," +
       "\"current_start\":  \"{{ state_attr(nursing, 'current_start') }}\"," +
-      "\"previous_start\": \"{{ state_attr(nursing, 'previous_start') }}\"" +
+      "\"previous_start\": \"{{ state_attr(nursing, 'previous_start') }}\"," +
+      "\"left_duration\":  \"{{ state_attr(nursing, 'current_left_duration') }}\"," +
+      "\"right_duration\": \"{{ state_attr(nursing, 'current_right_duration') }}\"" +
     "}";
 
   const url = HA_URL.replace(/\/+$/, "") + "/api/template";
@@ -149,13 +165,16 @@ function fetchState() {
     const nursingState =
       parsed.nursing === "active" ? "active" :
       parsed.nursing === "paused" ? "paused" : "none";
+    const elapsedSec =
+      isoDurationToSec(parsed.left_duration) + isoDurationToSec(parsed.right_duration);
     reply({
       RESULT: "state",
-      LAST_DIAPER:   isoToEpoch(parsed.diaper),
-      LAST_BOTTLE:   isoToEpoch(parsed.bottle),
-      NURSING_STATE: nursingState,
-      NURSING_START: isoToEpoch(parsed.current_start),
-      NURSING_LAST:  isoToEpoch(parsed.previous_start),
+      LAST_DIAPER:     isoToEpoch(parsed.diaper),
+      LAST_BOTTLE:     isoToEpoch(parsed.bottle),
+      NURSING_STATE:   nursingState,
+      NURSING_START:   isoToEpoch(parsed.current_start),
+      NURSING_LAST:    isoToEpoch(parsed.previous_start),
+      NURSING_ELAPSED: elapsedSec,
     });
   };
   xhr.onerror   = function () { reply({ RESULT: "err", STATUS: 0, MESSAGE: "network" }); };

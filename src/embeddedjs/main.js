@@ -54,14 +54,16 @@ const RED_THRESHOLD_S = 3600;     // > 1 hour ago turns the line red
 let selectedIndex = 0;
 let busy = false;
 let pendingResolve = null;
+let lastStateReceivedAtSec = 0;   // epoch sec when the most recent state snapshot arrived
 
 // Updated by pkjs fetch_state replies. 0 = unknown.
 const state = {
-  lastDiaper:    0,
-  lastBottle:    0,
-  lastNurse:     0,    // start time of the previous (completed) nursing session
-  nursingState:  "none",   // "active" | "paused" | "none" | "unknown"
-  nursingStart:  0,        // start time of the current active session
+  lastDiaper:     0,
+  lastBottle:     0,
+  lastNurse:      0,        // start time of the previous (completed) nursing session
+  nursingState:   "none",   // "active" | "paused" | "none" | "unknown"
+  nursingStart:   0,        // start time of the current active session
+  nursingElapsed: 0,        // total active feeding seconds from HA (frozen value)
 };
 
 // ----- Time helpers -------------------------------------------------------
@@ -83,12 +85,11 @@ function agoText(epoch) {
   return d + (d === 1 ? " day ago" : " days ago");
 }
 
-function elapsedText(epoch) {
-  if (!epoch) return "0:00";
-  const diff = Math.max(0, nowSec() - epoch);
-  const h = Math.floor(diff / 3600);
-  const m = Math.floor((diff % 3600) / 60);
-  const s = diff % 60;
+function formatTimer(sec) {
+  sec = Math.max(0, sec | 0);
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = sec % 60;
   const ss = s < 10 ? "0" + s : "" + s;
   if (h > 0) {
     const mm = m < 10 ? "0" + m : "" + m;
@@ -184,14 +185,18 @@ function updateTimeLine() {
 
   // Active nursing session takes over the time line (and hint).
   if (a.kind === "nurse" && state.nursingState === "active") {
+    // Live count-up: feeding seconds frozen from HA + time elapsed locally
+    // since we received that snapshot.
+    const live = state.nursingElapsed + Math.max(0, nowSec() - lastStateReceivedAtSec);
     refs.time.style  = timeStyleBk;
-    refs.time.string = elapsedText(state.nursingStart);
+    refs.time.string = formatTimer(live);
     refs.hint.string = HINT_PAUSE;
     return;
   }
   if (a.kind === "nurse" && state.nursingState === "paused") {
+    // Frozen: just show the last known active feeding total from HA.
     refs.time.style  = timeStyleBk;
-    refs.time.string = "Paused " + elapsedText(state.nursingStart);
+    refs.time.string = "Paused " + formatTimer(state.nursingElapsed);
     refs.hint.string = HINT_RESUME;
     return;
   }
@@ -242,18 +247,20 @@ const outbox = [];
 const message = new Message({
   keys: ["ACTION", "RESULT", "STATUS", "MESSAGE",
          "LAST_DIAPER", "LAST_BOTTLE",
-         "NURSING_STATE", "NURSING_START", "NURSING_LAST"],
+         "NURSING_STATE", "NURSING_START", "NURSING_LAST", "NURSING_ELAPSED"],
   onReadable() {
     const msg = this.read();
     const result = msg.get("RESULT");
 
     if (result === "state") {
-      state.lastDiaper   = msg.get("LAST_DIAPER")   || 0;
-      state.lastBottle   = msg.get("LAST_BOTTLE")   || 0;
-      state.lastNurse    = msg.get("NURSING_LAST")  || 0;
-      state.nursingState = msg.get("NURSING_STATE") || "none";
-      state.nursingStart = msg.get("NURSING_START") || 0;
-      console.log(`watch <- state diaper=${state.lastDiaper} bottle=${state.lastBottle} nursing=${state.nursingState}`);
+      state.lastDiaper     = msg.get("LAST_DIAPER")     || 0;
+      state.lastBottle     = msg.get("LAST_BOTTLE")     || 0;
+      state.lastNurse      = msg.get("NURSING_LAST")    || 0;
+      state.nursingState   = msg.get("NURSING_STATE")   || "none";
+      state.nursingStart   = msg.get("NURSING_START")   || 0;
+      state.nursingElapsed = msg.get("NURSING_ELAPSED") || 0;
+      lastStateReceivedAtSec = nowSec();
+      console.log(`watch <- state diaper=${state.lastDiaper} bottle=${state.lastBottle} nursing=${state.nursingState} elapsed=${state.nursingElapsed}`);
       if (!busy) updateTimeLine();
       return;
     }
@@ -301,6 +308,10 @@ function handleSelect() {
     if (state.nursingState === "active") {
       busy = true;
       showStatus("Pausing...", "");
+      // Freeze the live elapsed value locally so the paused display is
+      // correct immediately, before pkjs gets back to us with HA's truth.
+      state.nursingElapsed += Math.max(0, nowSec() - lastStateReceivedAtSec);
+      lastStateReceivedAtSec = nowSec();
       send("pause_nursing", true).then(result => {
         if (result.ok) state.nursingState = "paused";
         finishStatus(result);
@@ -310,6 +321,8 @@ function handleSelect() {
     if (state.nursingState === "paused") {
       busy = true;
       showStatus("Resuming...", "");
+      // Restart the local count from the current frozen elapsed.
+      lastStateReceivedAtSec = nowSec();
       send("resume_nursing", true).then(result => {
         if (result.ok) state.nursingState = "active";
         finishStatus(result);
