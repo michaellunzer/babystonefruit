@@ -1,11 +1,13 @@
 # Screenshots
 
-Real watch screenshots referenced by the main README, captured on a
-Pebble Time 2 (Emery, 200×228).
+Watch captures referenced by the main README. Two sets, one per target
+platform:
 
-Expected files:
+- **Rectangular** (Pebble Time 2, emery, 200×228):
+  `Diaper.png`, `Bottle.png`, `Nurse.png`, `End Nursing.png`
+- **Round** (Pebble 2 Duo, gabbro):
+  `Diaper-Round.png`, `Bottle-Round.png`, `Nurse-Round.png`,
+  `End Nursing-Round.png`
 
-- `diaper.png` — yellow background, poop emoji, "1 hour ago" in red
-- `bottle.png` — purple background, bottle emoji, "2 days ago" in red
-- `nurse.png` — pink background, nursing emoji, "1 hour ago" in red
-- `end-nursing.png` — coral/red background, stop sign emoji, "1 hour ago"
+Note: the "End Nursing" filenames contain a literal space, which Markdown
+references as `End%20Nursing.png` (URL-encoded).
