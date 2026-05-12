@@ -15,13 +15,19 @@ Built on the modern [Moddable Pebble JS SDK](https://developer.repebble.com/guid
 
 ## Screenshots
 
-Captured on a Pebble Time 2 (Emery, 200 × 228).
+Captured on a Pebble Time 2 (Emery, 200 × 228). The "X ago" line turns red once the last event is more than an hour old.
+
+### Rectangular (Pebble Time 2, Emery)
 
 | Diaper | Bottle | Nurse | End Nursing |
 |---|---|---|---|
-| ![Diaper screen](screenshots/diaper.png) | ![Bottle screen](screenshots/bottle.png) | ![Nurse screen](screenshots/nurse.png) | ![End Nursing screen](screenshots/end-nursing.png) |
+| ![Diaper screen](screenshots/Diaper.png) | ![Bottle screen](screenshots/Bottle.png) | ![Nurse screen](screenshots/Nurse.png) | ![End Nursing screen](screenshots/End%20Nursing.png) |
 
-The "X ago" line turns red once the last event is more than an hour old.
+### Round (Pebble 2 Duo, Gabbro)
+
+| Diaper | Bottle | Nurse | End Nursing |
+|---|---|---|---|
+| ![Diaper screen, round](screenshots/Diaper-Round.png) | ![Bottle screen, round](screenshots/Bottle-Round.png) | ![Nurse screen, round](screenshots/Nurse-Round.png) | ![End Nursing screen, round](screenshots/End%20Nursing-Round.png) |
 
 ## Requirements
 
