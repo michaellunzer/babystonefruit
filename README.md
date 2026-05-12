@@ -207,3 +207,7 @@ See [`CHANGELOG.md`](./CHANGELOG.md). Current version: **1.0.0**.
 - **[CloudPebble](https://cloudpebble.rebble.io/)** — the web IDE used to build and install this.
 - **[Twemoji](https://github.com/jdecked/twemoji)** (MIT) — the emoji bitmaps in `resources/img/`.
 - **Home Assistant** — the glue layer that makes calling Huckleberry from a watch a sane thing to do at all.
+
+## Built with Claude
+
+Heads up — this was vibe coded. I built the whole thing in a long back-and-forth using [Claude Code](https://claude.com/claude-code). I'd describe what I wanted, run whatever it spat out on the watch, tell it what broke, and we'd go again. Pretty fun, and we got surprisingly far. Every change ended up tested on a real Pebble against a real Huckleberry account before it was published to the Pebble App Store.
