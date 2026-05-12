@@ -138,12 +138,30 @@ const timeStyleBk   = new Style({ font: "bold 18px Gothic", color: "black",  hor
 const timeStyleRed  = new Style({ font: "bold 18px Gothic", color: TEXT_RED, horizontal: "center", vertical: "middle" });
 const hintStyle     = new Style({ font: "14px Gothic",      color: "black",  horizontal: "center", vertical: "middle" });
 
+const BANNER_H = 22;
+const bannerSkin  = new Skin({ fill: "black" });
+const bannerStyle = new Style({
+  font: "bold 14px Gothic",
+  color: "white",
+  horizontal: "center",
+  vertical: "middle",
+});
+
 const App = Application.template($ => ({
   skin: skins.status,
   contents: [
+    // Always-on black clock banner across the top.
+    Label($, {
+      anchor: "banner",
+      left: 0, right: 0, top: 0, height: BANNER_H,
+      skin: bannerSkin,
+      style: bannerStyle,
+      string: "",   // populated on first tick
+    }),
+    // Action surface below the banner.
     Container($, {
       anchor: "bg",
-      left: 0, right: 0, top: 0, bottom: 0,
+      left: 0, right: 0, top: BANNER_H, bottom: 0,
       skin: skinForIndex(selectedIndex),
       contents: [
         Label($, {
@@ -159,7 +177,7 @@ const App = Application.template($ => ({
         }),
         Label($, {
           anchor: "time",
-          left: 0, right: 0, top: 110, height: 20,
+          left: 0, right: 0, top: 112, height: 20,
           style: timeStyleBk,
           string: "",
         }),
@@ -174,8 +192,23 @@ const App = Application.template($ => ({
   ],
 }));
 
-const refs = { bg: null, main: null, icon: null, time: null, hint: null };
+const refs = { banner: null, bg: null, main: null, icon: null, time: null, hint: null };
 const app = new App(refs, { displayListLength: 4608 });
+
+function bannerText() {
+  const d = new Date();
+  let h = d.getHours();
+  const m = d.getMinutes();
+  const am = h < 12;
+  if (h === 0) h = 12;
+  else if (h > 12) h -= 12;
+  const mm = m < 10 ? "0" + m : "" + m;
+  return h + ":" + mm + " " + (am ? "AM" : "PM");
+}
+
+function updateBanner() {
+  refs.banner.string = bannerText();
+}
 
 // Update the time line + hint based on the currently selected action and
 // the latest known state. Called on selection change, after fetch_state,
@@ -240,12 +273,13 @@ function showStatus(text, hint) {
   refs.icon.skin   = null;
 }
 
-// Tick the time line every second so "X ago" and the active timer stay
-// current without re-fetching from HA.
+// Tick the time line + clock banner every second so "X ago", the active
+// timer, and the current time stay live without re-fetching from HA.
 let tickHandle = null;
 function startTicker() {
   if (tickHandle !== null) return;
   tickHandle = setInterval(() => {
+    updateBanner();
     if (!busy) updateTimeLine();
   }, 1000);
 }
@@ -386,6 +420,7 @@ new Button({
 
 // ----- Boot --------------------------------------------------------------
 
+updateBanner();   // populate the clock banner before the first tick
 renderAction();
 startTicker();
 fetchState();
