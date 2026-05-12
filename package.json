@@ -8,7 +8,9 @@
     ],
     "name": "baby-stonefruit",
     "pebble": {
-        "capabilities": [],
+        "capabilities": [
+            "configurable"
+        ],
         "displayName": "Baby StoneFruit",
         "enableMultiJS": true,
         "messageKeys": [

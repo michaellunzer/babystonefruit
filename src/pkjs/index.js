@@ -29,13 +29,63 @@
 
 const moddableProxy = require("@moddable/pebbleproxy");
 
-const HA_URL    = process.env.Home_Assistant_URL;
-const HA_TOKEN  = process.env.HA_long_token;
-const DEVICE_ID = process.env.HA_kid_device_id;
+// ----- Configuration ------------------------------------------------------
+//
+// Two sources of credentials, in priority order:
+//   1. localStorage (set by the in-app Settings page, see config/config.html)
+//   2. CloudPebble PebbleKit JS environment variables (developer fallback,
+//      substituted at build time)
+//
+// User-entered values win — that lets anyone install the published .pbw and
+// configure via the gear icon without rebuilding.
+
+const STORAGE_KEY = "settings";
+
+const DEFAULT_HA_URL    = process.env.Home_Assistant_URL;
+const DEFAULT_HA_TOKEN  = process.env.HA_long_token;
+const DEFAULT_DEVICE_ID = process.env.HA_kid_device_id;
+
+const CONFIG_URL =
+  "https://babystonefruit.michaellunzer.com/config/config.html";
+
+let HA_URL    = DEFAULT_HA_URL    || "";
+let HA_TOKEN  = DEFAULT_HA_TOKEN  || "";
+let DEVICE_ID = DEFAULT_DEVICE_ID || "";
+let KID_NAME  = "";
+
+function loadSettings() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    const s = JSON.parse(raw);
+    if (s.haUrl)       HA_URL    = s.haUrl;
+    if (s.haToken)     HA_TOKEN  = s.haToken;
+    if (s.kidDeviceId) DEVICE_ID = s.kidDeviceId;
+    if (s.kidName)     KID_NAME  = s.kidName;
+  } catch (e) {
+    console.log("pkjs: failed to load settings: " + e);
+  }
+}
+
+function saveSettings() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      haUrl:       HA_URL,
+      haToken:     HA_TOKEN,
+      kidDeviceId: DEVICE_ID,
+      kidName:     KID_NAME,
+    }));
+  } catch (e) {
+    console.log("pkjs: failed to save settings: " + e);
+  }
+}
+
+loadSettings();
 
 console.log("pkjs: HA_URL=" + (HA_URL ? "set" : "MISSING")
   + " HA_TOKEN=" + (HA_TOKEN ? "set(" + HA_TOKEN.length + ")" : "MISSING")
-  + " DEVICE_ID=" + (DEVICE_ID ? "set" : "MISSING"));
+  + " DEVICE_ID=" + (DEVICE_ID ? "set" : "MISSING")
+  + " KID_NAME=" + (KID_NAME || "<none>"));
 
 // ----- Service call mapping ----------------------------------------------
 
@@ -216,4 +266,32 @@ Pebble.addEventListener("appmessage", function (e) {
   }
 
   callHomeAssistant(action);
+});
+
+// ----- Settings page (Clay-style) ----------------------------------------
+
+Pebble.addEventListener("showConfiguration", function () {
+  const current = {
+    haUrl:       HA_URL,
+    haToken:     HA_TOKEN,
+    kidDeviceId: DEVICE_ID,
+    kidName:     KID_NAME,
+  };
+  const url = CONFIG_URL + "?current=" + encodeURIComponent(JSON.stringify(current));
+  Pebble.openURL(url);
+});
+
+Pebble.addEventListener("webviewclosed", function (e) {
+  if (!e.response) return;   // user cancelled
+  try {
+    const s = JSON.parse(decodeURIComponent(e.response));
+    if (typeof s.haUrl       === "string") HA_URL    = s.haUrl.trim();
+    if (typeof s.haToken     === "string") HA_TOKEN  = s.haToken.trim();
+    if (typeof s.kidDeviceId === "string") DEVICE_ID = s.kidDeviceId.trim();
+    if (typeof s.kidName     === "string") KID_NAME  = s.kidName.trim();
+    saveSettings();
+    console.log("pkjs: settings updated from webview");
+  } catch (err) {
+    console.log("pkjs: failed to parse webview response: " + err);
+  }
 });

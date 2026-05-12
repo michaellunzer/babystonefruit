@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Baby StoneFruit Settings</title>
+<style>
+  :root {
+    --bg: #f5f5f7;
+    --card: #ffffff;
+    --text: #1d1d1f;
+    --muted: #6e6e73;
+    --border: #d2d2d7;
+    --primary: #ff6900;
+    --primary-text: #ffffff;
+    --secondary: #e8e8ed;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    padding: 24px 20px env(safe-area-inset-bottom, 24px);
+    max-width: 520px;
+    margin: 0 auto;
+    line-height: 1.45;
+  }
+  header { margin-bottom: 24px; }
+  header h1 { font-size: 24px; margin: 0 0 6px; }
+  header p { margin: 0; color: var(--muted); font-size: 14px; }
+  .card {
+    background: var(--card);
+    border-radius: 12px;
+    padding: 18px;
+    margin-bottom: 16px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  }
+  label {
+    display: block;
+    font-weight: 600;
+    font-size: 13px;
+    margin-bottom: 6px;
+    color: var(--text);
+  }
+  .hint {
+    color: var(--muted);
+    font-size: 12px;
+    margin: 4px 0 14px;
+    line-height: 1.4;
+  }
+  .hint code {
+    background: var(--secondary);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 11px;
+  }
+  input[type="text"], input[type="url"], input[type="password"] {
+    width: 100%;
+    padding: 12px 14px;
+    font-size: 16px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(255, 105, 0, 0.15);
+  }
+  .actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 8px;
+  }
+  button {
+    flex: 1;
+    padding: 14px 18px;
+    font-size: 16px;
+    font-weight: 600;
+    font-family: inherit;
+    border: 0;
+    border-radius: 10px;
+    cursor: pointer;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  button.primary {
+    background: var(--primary);
+    color: var(--primary-text);
+  }
+  button.secondary {
+    background: var(--secondary);
+    color: var(--text);
+  }
+  button:active { opacity: 0.7; }
+  details {
+    margin-top: 16px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  details summary {
+    cursor: pointer;
+    color: var(--primary);
+    font-weight: 600;
+    padding: 4px 0;
+  }
+  details ol { padding-left: 22px; line-height: 1.6; }
+  details li { margin-bottom: 6px; }
+  details code {
+    background: var(--secondary);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 12px;
+  }
+</style>
+</head>
+<body>
+  <header>
+    <h1>Baby StoneFruit</h1>
+    <p>Connect your Pebble to Huckleberry through Home Assistant.</p>
+  </header>
+
+  <div class="card">
+    <label for="kidName">Kid name <span style="color:var(--muted);font-weight:400">(optional)</span></label>
+    <input id="kidName" type="text" autocomplete="off" autocapitalize="words" placeholder="e.g. Graham">
+    <div class="hint">Just for your reference — not sent anywhere.</div>
+
+    <label for="haUrl">Home Assistant URL</label>
+    <input id="haUrl" type="url" autocomplete="off" autocapitalize="none" autocorrect="off" placeholder="https://your-ha.example.com">
+    <div class="hint">No trailing slash. HTTPS required.</div>
+
+    <label for="haToken">Long-lived access token</label>
+    <input id="haToken" type="password" autocomplete="off">
+    <div class="hint">From <em>HA Profile → Security → Long-Lived Access Tokens</em>. Stored only on this phone.</div>
+
+    <label for="kidDeviceId">Child device ID</label>
+    <input id="kidDeviceId" type="text" autocomplete="off" autocapitalize="none" autocorrect="off" placeholder="e754ec7bb8cdca212be0cd0897c83eaf">
+    <div class="hint">From <em>Settings → Devices &amp; Services → Huckleberry</em>. Click the device to find the ID.</div>
+
+    <details>
+      <summary>Need help finding these?</summary>
+      <ol>
+        <li>Install the <a href="https://github.com/Woyken/huckleberry-homeassistant" target="_blank" rel="noopener">Huckleberry HA integration</a> and sign in.</li>
+        <li>In HA: <code>Profile → Security → Long-Lived Access Tokens → Create Token</code>. Copy it into the token field above.</li>
+        <li>In HA: <code>Settings → Devices &amp; Services → Huckleberry</code>. Click your child's device — the device ID is shown at the top.</li>
+      </ol>
+    </details>
+  </div>
+
+  <div class="actions">
+    <button id="cancel" type="button" class="secondary">Cancel</button>
+    <button id="save" type="button" class="primary">Save</button>
+  </div>
+
+<script>
+  function qs(name) {
+    var m = location.search.match(new RegExp("[?&]" + name + "=([^&]*)"));
+    return m ? decodeURIComponent(m[1]) : "";
+  }
+
+  // Pre-fill from current settings if the watch app passed them in.
+  try {
+    var current = JSON.parse(qs("current") || "{}");
+    if (current.kidName)     document.getElementById("kidName").value     = current.kidName;
+    if (current.haUrl)       document.getElementById("haUrl").value       = current.haUrl;
+    if (current.haToken)     document.getElementById("haToken").value     = current.haToken;
+    if (current.kidDeviceId) document.getElementById("kidDeviceId").value = current.kidDeviceId;
+  } catch (e) {}
+
+  var returnTo = qs("return_to") || "pebblejs://close#";
+
+  document.getElementById("save").addEventListener("click", function () {
+    var settings = {
+      kidName:     document.getElementById("kidName").value.trim(),
+      haUrl:       document.getElementById("haUrl").value.trim().replace(/\/+$/, ""),
+      haToken:     document.getElementById("haToken").value.trim(),
+      kidDeviceId: document.getElementById("kidDeviceId").value.trim(),
+    };
+    location.href = returnTo + encodeURIComponent(JSON.stringify(settings));
+  });
+
+  document.getElementById("cancel").addEventListener("click", function () {
+    // Returning with no payload signals "no change".
+    location.href = returnTo;
+  });
+</script>
+</body>
+</html>
