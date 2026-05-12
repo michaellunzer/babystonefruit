@@ -196,7 +196,7 @@ The settings page is hosted via GitHub Pages at <https://babystonefruit.michaell
 
 ## Changelog
 
-See [`CHANGELOG.md`](./CHANGELOG.md). Current version: **1.0.0**.
+See [`CHANGELOG.md`](./CHANGELOG.md). Current version: **1.0.1**.
 
 ## Credits
 
