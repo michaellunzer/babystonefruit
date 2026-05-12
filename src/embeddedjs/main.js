@@ -185,9 +185,20 @@ function updateTimeLine() {
 
   // Active nursing session takes over the time line (and hint).
   if (a.kind === "nurse" && state.nursingState === "active") {
-    // Live count-up: feeding seconds frozen from HA + time elapsed locally
-    // since we received that snapshot.
-    const live = state.nursingElapsed + Math.max(0, nowSec() - lastStateReceivedAtSec);
+    // Primary: HA's authoritative active-feeding seconds + locally elapsed
+    // time since we received that snapshot.
+    let live = state.nursingElapsed + Math.max(0, nowSec() - lastStateReceivedAtSec);
+    // Fallback: when the integration has reported state=active but hasn't
+    // yet populated current_left_duration / current_right_duration (common
+    // right after a session is started — the realtime listener hasn't
+    // synced yet), nursingElapsed is 0 and we'd start the timer at 0:00
+    // even though the session is well underway. Use wall-clock from
+    // current_start as a sane lower bound. Only kicks in when we have no
+    // duration data at all, so it can't undercount paused-and-resumed
+    // sessions where the durations are correct but smaller than wall-clock.
+    if (state.nursingElapsed === 0 && state.nursingStart > 0) {
+      live = Math.max(live, nowSec() - state.nursingStart);
+    }
     refs.time.style  = timeStyleBk;
     refs.time.string = formatTimer(live);
     refs.hint.string = HINT_PAUSE;
