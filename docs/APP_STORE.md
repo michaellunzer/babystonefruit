@@ -1,4 +1,4 @@
-# App store listing — Baby StoneFruit 1.0.0
+# App store listing — Baby StoneFruit 1.0.1
 
 Copy this into the **Publish** tab in CloudPebble (or the equivalent
 form on the Rebble app store dashboard) when submitting the app.
@@ -78,7 +78,7 @@ Trim to 15–20 seconds, loopable.
 
 ## Pre-submission checklist
 
-- [ ] Version in `package.json` is `1.0.0`
+- [ ] Version in `package.json` matches the release you're publishing (`1.0.1` currently)
 - [ ] App compiles cleanly in CloudPebble for both `emery` and `gabbro`
 - [ ] In-app settings page opens via the gear icon and saves correctly
 - [ ] Diaper screen shows a real "X ago" within seconds of launch (HA reachable)

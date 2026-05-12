@@ -4,6 +4,31 @@ All notable changes to Baby StoneFruit. The format is loosely based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project
 follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1] — 2026-05-11
+
+Re-published binary + documentation. No code changes.
+
+### Documentation
+- Add a **"Why does this need Home Assistant?"** README section explaining
+  that Pebble JS can't speak gRPC (Firestore-only) on either the watch or
+  the phone, so HA acts as the Python/Firebase-SDK bridge.
+- Add a **"Built with Claude"** section noting the project was vibe-coded
+  via Anthropic's Claude.
+- Add real Pebble Time 2 (Emery) and Pebble 2 Duo (Gabbro) screenshots to
+  the README.
+- Add a **publishing-security warning** in the README and a full writeup
+  in `docs/APP_STORE.md`: CloudPebble's PebbleKit JS environment variables
+  are substituted as string literals at build time and end up embedded in
+  the compiled `.pbw`. Clear them before doing a publish build, or
+  anyone who downloads the binary from the Rebble app store can `unzip`
+  it and read your HA URL / long-lived token / device ID.
+
+### Re-published binary
+- The 1.0.1 `.pbw` is a clean rebuild with empty CloudPebble env vars,
+  replacing the 1.0.0 binary that had the developer's credentials baked
+  in. End users continue to configure via the in-app settings page.
+- 1.0.0 token has been rotated in Home Assistant.
+
 ## [1.0.0] — 2026-05-11
 
 First public release.
