@@ -67,9 +67,11 @@ In Home Assistant: **Profile → Security → Long-Lived Access Tokens → Creat
 
 **Settings → Devices & Services → Huckleberry →** click your child → click the **device ID** value to copy. It'll look like `e754ec7bb8cdca212be0cd0897c83eaf`.
 
-### 4. Set the three env vars in CloudPebble
+### 4. Configure the app — either way works
 
-Open this project in CloudPebble (sync from GitHub if needed). Go to **Settings → PebbleKit JS Environment Variables** and add:
+**The easy way (recommended for end users):** install the built `.pbw`, then open the **Pebble companion app on your phone → gear icon next to Baby StoneFruit**. The in-app settings page asks for your HA URL, access token, device ID, and (optionally) the child's name. Settings live only on your phone.
+
+**The build-time way (for developers building from source):** open the project in CloudPebble, **Settings → PebbleKit JS Environment Variables**, and add:
 
 | Variable name        | Value |
 |----------------------|-------|
@@ -77,7 +79,7 @@ Open this project in CloudPebble (sync from GitHub if needed). Go to **Settings 
 | `HA_long_token`      | the long-lived access token from step 2 |
 | `HA_kid_device_id`   | the device ID from step 3 |
 
-CloudPebble stores these encrypted; they are inlined into `pkjs/index.js` at build time only.
+CloudPebble stores these encrypted; they are inlined into `pkjs/index.js` at build time and act as defaults. Any value set via the in-app settings page overrides the env var.
 
 ### 5. Build and install
 
@@ -139,16 +141,20 @@ Huckleberry / Firestore
 ```
 .
 ├── package.json                # Pebble project + CloudPebble env-var refs + resources
+├── config/
+│   └── config.html             # Pebble in-app settings page (served via GitHub Pages)
 ├── resources/img/              # Twemoji PNGs (poop, bottle, nursing, stop)
 └── src/
     ├── embeddedjs/             # Runs on the watch (Moddable XS)
     │   ├── main.js             # UI, button input, AppMessage to pkjs, time ticker
     │   └── manifest.json
     ├── pkjs/
-    │   └── index.js            # Runs on the phone — HA fetch + state fetch
+    │   └── index.js            # Runs on the phone — HA fetch + state fetch + settings
     └── c/
         └── mdbl.c              # Moddable boilerplate (untouched)
 ```
+
+The settings page is hosted via GitHub Pages at <https://babystonefruit.michaellunzer.com/config/config.html>. When the user opens the gear icon in the Pebble companion app, `showConfiguration` in `pkjs/index.js` opens that URL with the current settings encoded in the query string. The page redirects back with the new settings via the `pebblejs://close#…` scheme; pkjs persists them in `localStorage`.
 
 ## Customisation
 
