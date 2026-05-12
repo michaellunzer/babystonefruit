@@ -164,24 +164,6 @@ Huckleberry / Firestore
 
 The settings page is hosted via GitHub Pages at <https://babystonefruit.michaellunzer.com/config/config.html>. When the user opens the gear icon in the Pebble companion app, `showConfiguration` in `pkjs/index.js` opens that URL with the current settings encoded in the query string. The page redirects back with the new settings via the `pebblejs://close#…` scheme; pkjs persists them in `localStorage`.
 
-## Customisation
-
-### Re-enable detailed diaper / nursing variants
-
-The original action list had four diaper variants (Wet / Dirty / Both / Dry) and split nursing into Left / Right. They're commented out in both `src/embeddedjs/main.js` (the `ACTIONS` array) and `src/pkjs/index.js` (the `buildCall` switch). Uncomment to bring them back.
-
-### Change defaults
-
-Edit the bodies in `src/pkjs/index.js`'s `buildCall()` — e.g. bottle amount or default diaper consistency.
-
-### Swap icons
-
-Drop new 72×72 PNGs into `resources/img/`, update the `media` entries in `package.json`, and re-verify the runtime Texture ID mapping in `main.js`'s `IMAGE_*` constants. CloudPebble assigns numeric IDs to resources in an order that doesn't always match `package.json` — if icons come out wrong after a re-import, swap the integer values next to the `IMAGE_*` names at the top of `main.js`.
-
-### Recolour
-
-The four category colors live in the `COLORS` object at the top of `src/embeddedjs/main.js`.
-
 ## Limitations & known gaps
 
 - **Bottle has no "session" concept.** Huckleberry models a bottle feeding as a one-shot event with `amount_ml`. The watch logs 120 ml of formula instantly when you press Select. There's no live bottle timer because there's no server-side equivalent of `pause_nursing`.
