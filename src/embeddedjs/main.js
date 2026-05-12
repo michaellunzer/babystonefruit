@@ -58,6 +58,7 @@ let lastStateReceivedAtSec = 0;   // epoch sec when the most recent state snapsh
 
 // Updated by pkjs fetch_state replies. 0 = unknown.
 const state = {
+  received:       false,    // has a state snapshot ever arrived?
   lastDiaper:     0,
   lastBottle:     0,
   lastNurse:      0,        // start time of the previous (completed) nursing session
@@ -203,9 +204,19 @@ function updateTimeLine() {
 
   // Default: "X ago" for the action's last occurrence. Red if > 1 hour.
   refs.hint.string = HINT_DEFAULT;
+
+  if (!state.received) {
+    // Distinguish "no snapshot yet" from "snapshot received, no data".
+    refs.time.style  = timeStyleBk;
+    refs.time.string = "...";
+    return;
+  }
+
   const ts = lastTimestampFor(a.kind);
   if (!ts) {
-    refs.time.string = "";
+    // Snapshot arrived but no value for this kind — e.g. HA sensor unknown.
+    refs.time.style  = timeStyleBk;
+    refs.time.string = "no data";
     return;
   }
   const diff = nowSec() - ts;
@@ -253,6 +264,7 @@ const message = new Message({
     const result = msg.get("RESULT");
 
     if (result === "state") {
+      state.received       = true;
       state.lastDiaper     = msg.get("LAST_DIAPER")     || 0;
       state.lastBottle     = msg.get("LAST_BOTTLE")     || 0;
       state.lastNurse      = msg.get("NURSING_LAST")    || 0;
