@@ -181,6 +181,10 @@ The four category colors live in the `COLORS` object at the top of `src/embedded
 - **Pebble app size is small.** All four emojis are bundled as 72×72 PNGs — total app size is well under the watch's storage budget, but adding much more (sound, additional icons) requires care.
 - **Polling cadence.** The watch refreshes state on startup and after each successful log. Externally-triggered changes (e.g. logging from the Huckleberry mobile app) won't show up until the next watch action.
 
+## Changelog
+
+See [`CHANGELOG.md`](./CHANGELOG.md). Current version: **1.0.0**.
+
 ## Credits
 
 - **[Huckleberry](https://huckleberrycare.com/)** — the baby tracking app this hooks into.
