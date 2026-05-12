@@ -133,8 +133,9 @@ function fetchState() {
     "{%- set bottle  = device_entities(d) | select('search', '_bottle$')  | first -%}" +
     "{%- set nursing = device_entities(d) | select('search', '_nursing$') | first -%}" +
     "{" +
-      "\"diaper\": \"{{ states(diaper) }}\"," +
-      "\"bottle\": \"{{ states(bottle) }}\"," +
+      "\"diaper_entity\": \"{{ diaper }}\"," +
+      "\"diaper\":  \"{{ states(diaper) }}\"," +
+      "\"bottle\":  \"{{ states(bottle) }}\"," +
       "\"nursing\": \"{{ states(nursing) }}\"," +
       "\"current_start\":  \"{{ state_attr(nursing, 'current_start') }}\"," +
       "\"previous_start\": \"{{ state_attr(nursing, 'previous_start') }}\"," +
@@ -144,6 +145,7 @@ function fetchState() {
 
   const url = HA_URL.replace(/\/+$/, "") + "/api/template";
   const body = JSON.stringify({ template: tmpl });
+  console.log("pkjs fetchState: POST " + url);
 
   const xhr = new XMLHttpRequest();
   xhr.open("POST", url, true);
@@ -151,6 +153,7 @@ function fetchState() {
   xhr.setRequestHeader("Content-Type", "application/json");
   xhr.timeout = 20000;
   xhr.onload = function () {
+    console.log("pkjs fetchState: status=" + xhr.status + " body=" + (xhr.responseText || "").substring(0, 400));
     if (xhr.status < 200 || xhr.status >= 300) {
       reply({ RESULT: "err", STATUS: xhr.status, MESSAGE: "state HTTP " + xhr.status });
       return;
@@ -159,6 +162,7 @@ function fetchState() {
     try {
       parsed = JSON.parse(xhr.responseText);
     } catch (e) {
+      console.log("pkjs fetchState: JSON parse error " + e);
       reply({ RESULT: "err", STATUS: 0, MESSAGE: "parse" });
       return;
     }
@@ -167,7 +171,7 @@ function fetchState() {
       parsed.nursing === "paused" ? "paused" : "none";
     const elapsedSec =
       isoDurationToSec(parsed.left_duration) + isoDurationToSec(parsed.right_duration);
-    reply({
+    const payload = {
       RESULT: "state",
       LAST_DIAPER:     isoToEpoch(parsed.diaper),
       LAST_BOTTLE:     isoToEpoch(parsed.bottle),
@@ -175,10 +179,16 @@ function fetchState() {
       NURSING_START:   isoToEpoch(parsed.current_start),
       NURSING_LAST:    isoToEpoch(parsed.previous_start),
       NURSING_ELAPSED: elapsedSec,
-    });
+    };
+    console.log("pkjs fetchState: diaper_entity=" + parsed.diaper_entity
+      + " diaper_raw=" + parsed.diaper
+      + " -> LAST_DIAPER=" + payload.LAST_DIAPER
+      + " NURSING_STATE=" + payload.NURSING_STATE
+      + " NURSING_ELAPSED=" + payload.NURSING_ELAPSED);
+    reply(payload);
   };
-  xhr.onerror   = function () { reply({ RESULT: "err", STATUS: 0, MESSAGE: "network" }); };
-  xhr.ontimeout = function () { reply({ RESULT: "err", STATUS: 0, MESSAGE: "timeout" }); };
+  xhr.onerror   = function () { console.log("pkjs fetchState: onerror");   reply({ RESULT: "err", STATUS: 0, MESSAGE: "network" }); };
+  xhr.ontimeout = function () { console.log("pkjs fetchState: ontimeout"); reply({ RESULT: "err", STATUS: 0, MESSAGE: "timeout" }); };
   xhr.send(body);
 }
 
