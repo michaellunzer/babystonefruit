@@ -129,9 +129,13 @@ function fetchState() {
   // env vars or knowing the user's child-name slug.
   const tmpl =
     "{%- set d = '" + DEVICE_ID + "' -%}" +
-    "{%- set diaper  = device_entities(d) | select('search', '_diaper$')  | first -%}" +
-    "{%- set bottle  = device_entities(d) | select('search', '_bottle$')  | first -%}" +
-    "{%- set nursing = device_entities(d) | select('search', '_nursing$') | first -%}" +
+    // Use negative lookbehind to skip vestigial *_last_diaper / *_last_bottle
+    // entities left over from older versions of the Huckleberry HA integration.
+    // The current integration exposes the canonical sensors as `<name>_diaper`,
+    // `<name>_bottle`, `<name>_nursing`.
+    "{%- set diaper  = device_entities(d) | select('search', '(?<!_last)_diaper$')  | first -%}" +
+    "{%- set bottle  = device_entities(d) | select('search', '(?<!_last)_bottle$')  | first -%}" +
+    "{%- set nursing = device_entities(d) | select('search', '(?<!_last)_nursing$') | first -%}" +
     "{" +
       "\"diaper_entity\": \"{{ diaper }}\"," +
       "\"diaper\":  \"{{ states(diaper) }}\"," +
