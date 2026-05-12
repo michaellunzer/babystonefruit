@@ -210,4 +210,4 @@ See [`CHANGELOG.md`](./CHANGELOG.md). Current version: **1.0.0**.
 
 ## Built with Claude
 
-Heads up — this was vibe coded. I built the whole thing in a long back-and-forth with Anthropic's [Claude](https://claude.com/) using [Claude Code](https://claude.com/claude-code). I'd describe what I wanted, run whatever it spat out on the watch, tell it what broke, and we'd go again. Pretty fun, surprisingly far. Every change ended up tested on a real Pebble against a real Huckleberry account before it landed.
+Heads up — this was vibe coded. I built the whole thing in a long back-and-forth using [Claude Code](https://claude.com/claude-code). I'd describe what I wanted, run whatever it spat out on the watch, tell it what broke, and we'd go again. Pretty fun, and we got surprisingly far. Every change ended up tested on a real Pebble against a real Huckleberry account before it was published to the Pebble App Store.
