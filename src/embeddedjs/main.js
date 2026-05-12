@@ -166,18 +166,18 @@ const App = Application.template($ => ({
       contents: [
         Label($, {
           anchor: "main",
-          left: 0, right: 0, top: 6, height: 28,
+          left: 0, right: 0, top: 24, height: 28,
           style: labelStyle,
           string: ACTIONS[selectedIndex].label,
         }),
         Content($, {
           anchor: "icon",
-          left: 0, right: 0, top: 36, height: 72,
+          left: 0, right: 0, top: 64, height: 72,
           skin: iconSkins[ACTIONS[selectedIndex].image],
         }),
         Label($, {
           anchor: "time",
-          left: 0, right: 0, top: 112, height: 20,
+          left: 0, right: 0, top: 148, height: 20,
           style: timeStyleBk,
           string: "",
         }),
