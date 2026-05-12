@@ -15,11 +15,13 @@ Built on the modern [Moddable Pebble JS SDK](https://developer.repebble.com/guid
 
 ## Screenshots
 
+Captured on a Pebble Time 2 (Emery, 200 × 228).
+
 | Diaper | Bottle | Nurse | End Nursing |
 |---|---|---|---|
-| 🟡 💩 | 🟣 🍼 | 🩷 🤱 | 🟥 🛑 |
+| ![Diaper screen](screenshots/diaper.png) | ![Bottle screen](screenshots/bottle.png) | ![Nurse screen](screenshots/nurse.png) | ![End Nursing screen](screenshots/end-nursing.png) |
 
-*(Add a real watch / emulator screenshot here when you're ready.)*
+The "X ago" line turns red once the last event is more than an hour old.
 
 ## Requirements
 
