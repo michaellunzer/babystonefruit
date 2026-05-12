@@ -87,7 +87,9 @@ In Home Assistant: **Profile → Security → Long-Lived Access Tokens → Creat
 | `HA_long_token`      | the long-lived access token from step 2 |
 | `HA_kid_device_id`   | the device ID from step 3 |
 
-CloudPebble stores these encrypted; they are inlined into `pkjs/index.js` at build time and act as defaults. Any value set via the in-app settings page overrides the env var.
+CloudPebble stores these encrypted at rest, but they are inlined into `pkjs/index.js` as string literals **at build time** and embedded in the compiled `.pbw`. That's fine for private dev installs, but **clear these env vars in CloudPebble before doing any publish-build**, or the resulting `.pbw` will ship your credentials to anyone who downloads it from the Rebble app store. See [`docs/APP_STORE.md`](docs/APP_STORE.md#%EF%B8%8F-important-clear-your-cloudpebble-env-vars-before-building-the-publish-build) for details and a recovery checklist if you've already published with values set.
+
+Any value set via the in-app settings page overrides the env var.
 
 ### 5. Build and install
 

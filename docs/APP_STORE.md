@@ -86,3 +86,32 @@ Trim to 15–20 seconds, loopable.
 - [ ] LICENSE present at repo root
 - [ ] README is up to date
 - [ ] Screenshots captured and ready to upload
+- [ ] **PebbleKit JS env vars cleared in CloudPebble** *(see warning below)*
+
+## ⚠️ Important: clear your CloudPebble env vars before building the publish build
+
+The `Home_Assistant_URL`, `HA_long_token`, and `HA_kid_device_id` env vars in CloudPebble are **substituted as string literals at build time** into `pkjs/index.js`. They end up embedded inside the compiled `.pbw` binary.
+
+That's fine for your private dev installs, where you're the only person who runs the binary. But **anyone who downloads a published `.pbw` from the Rebble app store can `unzip` it and read those values.** That includes your Home Assistant URL, your long-lived access token, and your child's device ID — anyone with the token can read and write to your HA.
+
+Before you click **Publish**:
+
+1. CloudPebble → **Settings → PebbleKit JS Environment Variables**
+2. **Delete** the three values (or replace them with empty strings / dummy placeholders).
+3. **Save** → re-**Compile**.
+4. Verify the compiled `pkjs/index.js` no longer contains your secrets: download the build, `unzip` the `.pbw`, look inside `pebble-js-app.js`. You should see `var HA_URL = "";` (or similar) instead of your real values.
+5. Then publish.
+
+End users still get a working app — the in-app settings page (gear icon in the Pebble companion) is the supported path for them to enter their own values.
+
+### If you've already published with credentials baked in
+
+The token is now in a public binary. Rotate it:
+
+1. In HA: **Profile → Security → Long-Lived Access Tokens** — find the published one and **revoke** it.
+2. **Create a fresh token** for your personal use.
+3. Update the Pebble companion app's gear-icon settings on your phone with the new token.
+4. Clear the CloudPebble env vars (as above) so the next publish build is clean.
+5. Optional but recommended: re-build the publish build with no env vars, and push a 1.0.1 release that replaces the leaky binary on the store.
+
+The device ID and HA URL are also exposed by the leaked binary. The URL only matters if your HA isn't already public; the device ID can't be used without a valid token to talk to HA, so revoking the token neutralises the practical risk.
