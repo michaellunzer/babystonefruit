@@ -210,8 +210,4 @@ See [`CHANGELOG.md`](./CHANGELOG.md). Current version: **1.0.0**.
 
 ## Built with Claude
 
-Full disclosure: this project was **vibe coded**. Almost every line of code, this README, the CHANGELOG, the commit messages, and the PR descriptions were written through a long back-and-forth with Anthropic's [Claude](https://claude.com/) in [Claude Code](https://claude.com/claude-code). I described what I wanted, looked at what came back, ran it on a real Pebble watch and a real Huckleberry account, reported what was broken, and iterated.
-
-The [closed PR list](https://github.com/michaellunzer/babystonefruit/pulls?q=is%3Apr+is%3Aclosed) is a fairly entertaining log of where the workflow worked well — reading unfamiliar SDKs (Moddable, the Pebble JS runtime, `huckleberry-homeassistant`), mocking up UI changes in Python/PIL before building them, drafting structured docs — and where it didn't — three rounds of getting CloudPebble's icon resource IDs wrong, an entire detour into a custom Flask proxy server that we ultimately deleted in favour of using Home Assistant, multiple wrong guesses about how Pebble's animation manager works.
-
-Every change was tested end-to-end against the watch before landing on `main`. None of it would have been quick (or even tractable for me) without an AI pair-programmer.
+Heads up — this was vibe coded. I built the whole thing in a long back-and-forth with Anthropic's [Claude](https://claude.com/) using [Claude Code](https://claude.com/claude-code). I'd describe what I wanted, run whatever it spat out on the watch, tell it what broke, and we'd go again. Pretty fun, surprisingly far. Every change ended up tested on a real Pebble against a real Huckleberry account before it landed.
