@@ -138,7 +138,7 @@ function makeIconSkin(textureId) {
 }
 const iconSkins = [null, makeIconSkin(1), makeIconSkin(2), makeIconSkin(3), makeIconSkin(4)];
 
-const labelStyle    = new Style({ font: "bold 28px Gothic", color: "black",  horizontal: "center", vertical: "middle" });
+const labelStyle    = new Style({ font: "bold 24px Gothic", color: "black",  horizontal: "center", vertical: "middle" });
 const timeStyleBk   = new Style({ font: "bold 18px Gothic", color: "black",  horizontal: "center", vertical: "middle" });
 const timeStyleRed  = new Style({ font: "bold 18px Gothic", color: TEXT_RED, horizontal: "center", vertical: "middle" });
 const hintStyle     = new Style({ font: "14px Gothic",      color: "black",  horizontal: "center", vertical: "middle" });
