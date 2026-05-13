@@ -5,13 +5,5 @@
 	],
 	"modules": {
 		"*": "./*"
-	},
-	"creation": {
-		"chunk": {
-			"initial": 16384
-		},
-		"heap": {
-			"initial": 1024
-		}
 	}
 }
