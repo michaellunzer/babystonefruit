@@ -12,14 +12,6 @@ import {} from "piu/MC";
 import Button  from "pebble/button";
 import Message from "pebble/message";
 
-// Short vibe on Select — calls the native C function directly. The pebble/vibes
-// JS module wrapper isn't available in the current CloudPebble SDK build, but
-// the underlying xs_vibes_shortPulse native binding is. try/catch makes this
-// a silent no-op if the native isn't registered on a future build.
-function shortVibe() {
-  try { native("xs_vibes_shortPulse").call(null); } catch (e) {}
-}
-
 // ----- Colors (Huckleberry palette) ---------------------------------------
 
 const COLORS = {
@@ -356,7 +348,6 @@ function fetchState() {
 // ----- Buttons -----------------------------------------------------------
 
 function handleSelect() {
-  shortVibe();
   const a = ACTIONS[selectedIndex];
 
   // Active nursing session on the Nurse screen -> pause/resume.
