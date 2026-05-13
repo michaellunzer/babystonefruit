@@ -11,7 +11,10 @@
 import {} from "piu/MC";
 import Button  from "pebble/button";
 import Message from "pebble/message";
-import Vibes   from "pebble/vibes";
+
+// Inline vibe helper — avoids depending on the pebble/vibes module wrapper
+// which may not be present in older SDK builds on CloudPebble.
+function shortVibe() { try { native("xs_vibes_shortPulse").call(null); } catch(e) {} }
 
 // ----- Colors (Huckleberry palette) ---------------------------------------
 
@@ -349,7 +352,7 @@ function fetchState() {
 // ----- Buttons -----------------------------------------------------------
 
 function handleSelect() {
-  Vibes.shortPulse();
+  shortVibe();
   const a = ACTIONS[selectedIndex];
 
   // Active nursing session on the Nurse screen -> pause/resume.
