@@ -12,9 +12,10 @@ import {} from "piu/MC";
 import Button  from "pebble/button";
 import Message from "pebble/message";
 
-// Inline vibe helper — avoids depending on the pebble/vibes module wrapper
-// which may not be present in older SDK builds on CloudPebble.
-function shortVibe() { try { native("xs_vibes_shortPulse").call(null); } catch(e) {} }
+// Vibe on Select press — disabled pending an API that works on this SDK.
+// The pebble/vibes module isn't in the current build and native() bindings
+// from user code aren't reliable. No-op for now.
+function shortVibe() {}
 
 // ----- Colors (Huckleberry palette) ---------------------------------------
 
@@ -178,7 +179,7 @@ const App = Application.template($ => ({
         }),
         Content($, {
           anchor: "icon",
-          left: 0, right: 0, top: 58, height: 84,
+          left: 0, right: 0, top: 64, height: 72,
           skin: iconSkins[ACTIONS[selectedIndex].image],
         }),
         Label($, {
