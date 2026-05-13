@@ -11,6 +11,7 @@
 import {} from "piu/MC";
 import Button  from "pebble/button";
 import Message from "pebble/message";
+import Vibes   from "pebble/vibes";
 
 // ----- Colors (Huckleberry palette) ---------------------------------------
 
@@ -133,15 +134,17 @@ function makeIconSkin(textureId) {
 }
 const iconSkins = [null, makeIconSkin(1), makeIconSkin(2), makeIconSkin(3), makeIconSkin(4)];
 
-const labelStyle    = new Style({ font: "bold 24px Gothic", color: "black",  horizontal: "center", vertical: "middle" });
+const labelStyle    = new Style({ font: "bold 28px Gothic", color: "black",  horizontal: "center", vertical: "middle" });
 const timeStyleBk   = new Style({ font: "bold 18px Gothic", color: "black",  horizontal: "center", vertical: "middle" });
 const timeStyleRed  = new Style({ font: "bold 18px Gothic", color: TEXT_RED, horizontal: "center", vertical: "middle" });
 const hintStyle     = new Style({ font: "14px Gothic",      color: "black",  horizontal: "center", vertical: "middle" });
 
-const BANNER_H = 22;
+const BANNER_H   = 30;
+const IS_ROUND   = screen.width === screen.height;   // gabbro 260×260 vs emery 200×228
+const HINT_BOTTOM = IS_ROUND ? 30 : 10;
 const bannerSkin  = new Skin({ fill: "black" });
 const bannerStyle = new Style({
-  font: "bold 14px Gothic",
+  font: "bold 18px Gothic",
   color: "white",
   horizontal: "center",
   vertical: "middle",
@@ -172,7 +175,7 @@ const App = Application.template($ => ({
         }),
         Content($, {
           anchor: "icon",
-          left: 0, right: 0, top: 64, height: 72,
+          left: 0, right: 0, top: 58, height: 84,
           skin: iconSkins[ACTIONS[selectedIndex].image],
         }),
         Label($, {
@@ -183,7 +186,7 @@ const App = Application.template($ => ({
         }),
         Label($, {
           anchor: "hint",
-          left: 0, right: 0, bottom: 4, height: 16,
+          left: 0, right: 0, bottom: HINT_BOTTOM, height: 16,
           style: hintStyle,
           string: HINT_DEFAULT,
         }),
@@ -346,6 +349,7 @@ function fetchState() {
 // ----- Buttons -----------------------------------------------------------
 
 function handleSelect() {
+  Vibes.shortPulse();
   const a = ACTIONS[selectedIndex];
 
   // Active nursing session on the Nurse screen -> pause/resume.
