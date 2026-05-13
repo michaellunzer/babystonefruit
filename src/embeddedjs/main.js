@@ -12,11 +12,6 @@ import {} from "piu/MC";
 import Button  from "pebble/button";
 import Message from "pebble/message";
 
-// Vibe on Select press — disabled pending an API that works on this SDK.
-// The pebble/vibes module isn't in the current build and native() bindings
-// from user code aren't reliable. No-op for now.
-function shortVibe() {}
-
 // ----- Colors (Huckleberry palette) ---------------------------------------
 
 const COLORS = {
@@ -353,7 +348,6 @@ function fetchState() {
 // ----- Buttons -----------------------------------------------------------
 
 function handleSelect() {
-  shortVibe();
   const a = ACTIONS[selectedIndex];
 
   // Active nursing session on the Nurse screen -> pause/resume.
