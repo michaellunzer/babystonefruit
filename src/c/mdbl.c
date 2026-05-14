@@ -1,39 +1,49 @@
 #include <pebble.h>
 
 #ifdef PBL_SPEAKER
-// Stream a "raw" resource (mono signed 8-bit PCM @ 8 kHz) to the speaker.
-// Reads in 512-byte chunks, writes to the speaker buffer, briefly sleeps
-// if the buffer is full. Returns once all data has been queued; the speaker
-// continues playing buffered audio after close.
-static void play_pcm_resource(uint32_t resource_id) {
-  ResHandle handle = resource_get_handle(resource_id);
-  size_t total = resource_size(handle);
-  if (total == 0) return;
+//
+// UI tone library — short procedural tones for action feedback.
+// Each helper is a single non-blocking speaker_play_tone() call (the
+// system mixes/queues the actual playback).  Frequencies, durations,
+// and waveforms are chosen so each event is distinguishable by ear.
+//
+// Wiring to specific JS-side events (Up/Down → hover, Select → confirm,
+// pause/resume/end-nursing tones) is the next step — Moddable owns the
+// AppMessage inbox, so the trigger plumbing isn't trivial.  For now
+// only confirm_tone() fires at startup as a smoke test.
+//
 
-  if (!speaker_stream_open(SpeakerPcmFormat_8kHz_8bit, 80)) return;
+static void tone_hover(void) {
+  // Up / Down — light, quick scroll click
+  speaker_play_tone(600, 40, 50, SpeakerWaveformSine);
+}
 
-  uint8_t buffer[512];
-  size_t offset = 0;
-  while (offset < total) {
-    size_t to_read = total - offset;
-    if (to_read > sizeof(buffer)) to_read = sizeof(buffer);
+static void tone_confirm(void) {
+  // Select — higher, slightly longer affirmative chirp
+  speaker_play_tone(1000, 80, 60, SpeakerWaveformSine);
+}
 
-    size_t got = resource_load_byte_range(handle, offset, buffer, to_read);
-    if (got == 0) break;
+static void tone_pause(void) {
+  // Nursing paused — two-note descending (800 → 500 Hz)
+  speaker_play_tone(800, 60, 60, SpeakerWaveformSine);
+  psleep(60);
+  speaker_play_tone(500, 60, 60, SpeakerWaveformSine);
+}
 
-    size_t written = 0;
-    while (written < got) {
-      uint32_t n = speaker_stream_write(buffer + written, got - written);
-      if (n == 0) {
-        psleep(20);          // buffer full — let it drain
-      } else {
-        written += n;
-      }
-    }
-    offset += got;
-  }
+static void tone_resume(void) {
+  // Nursing resumed — two-note ascending (500 → 800 Hz)
+  speaker_play_tone(500, 60, 60, SpeakerWaveformSine);
+  psleep(60);
+  speaker_play_tone(800, 60, 60, SpeakerWaveformSine);
+}
 
-  speaker_stream_close();
+static void tone_completed(void) {
+  // End Nursing — three-note rising flourish
+  speaker_play_tone(600, 70, 65, SpeakerWaveformSine);
+  psleep(70);
+  speaker_play_tone(800, 70, 65, SpeakerWaveformSine);
+  psleep(70);
+  speaker_play_tone(1200, 90, 65, SpeakerWaveformSine);
 }
 #endif
 
@@ -42,10 +52,9 @@ int main(void) {
   window_stack_push(w, true);
 
 #ifdef PBL_SPEAKER
-  // Audio test (Step 2): play the actual UI_Confirm sound from a resource,
-  // streamed via speaker_stream_*. Validates that raw PCM resources work
-  // and that the streaming API doesn't conflict with Moddable startup.
-  play_pcm_resource(RESOURCE_ID_SOUND_UI_CONFIRM);
+  // Smoke test: play the confirm tone at startup so we can hear that the
+  // tone library is wired up before we wrestle with JS-side triggers.
+  tone_confirm();
 #endif
 
   moddable_createMachine(NULL);
