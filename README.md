@@ -210,6 +210,16 @@ See [`CHANGELOG.md`](./CHANGELOG.md). Current version: **1.0.1**.
 - **[Twemoji](https://github.com/jdecked/twemoji)** (MIT) — the emoji bitmaps in `resources/img/`.
 - **Home Assistant** — the glue layer that makes calling Huckleberry from a watch a sane thing to do at all.
 
+### Sound effects (planned)
+
+The following UI sounds by **MATUSTRM** ([freesound.org](https://freesound.org/people/MATUSTRM/)) are intended for future audio feedback — not yet integrated due to Pebble's tight memory constraints. All released under [Creative Commons 0](https://creativecommons.org/publicdomain/zero/1.0/).
+
+- *UI_Confirm* — <https://freesound.org/s/836200/>
+- *UI_Hover* — <https://freesound.org/s/836201/>
+- *Pause* — <https://freesound.org/s/836021/>
+- *Resume* — <https://freesound.org/s/836022/>
+- *Completed* — <https://freesound.org/s/835880/>
+
 ## Built with Claude
 
 Heads up — this was vibe coded. I built the whole thing in a long back-and-forth using [Claude Code](https://claude.com/claude-code). I'd describe what I wanted, run whatever it spat out on the watch, tell it what broke, and we'd go again. Pretty fun, and we got surprisingly far. Every change ended up tested on a real Pebble against a real Huckleberry account before it was published to the Pebble App Store.
