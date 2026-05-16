@@ -49,6 +49,14 @@ const HINT_RESUME   = "Select to resume";
 const STATUS_FLASH_MS = 700;
 const RED_THRESHOLD_S = 3600;     // > 1 hour ago turns the line red
 
+// While an active nursing session is in progress the watch shows a snapshot
+// of HA's "current feeding duration" plus a locally-counted offset since
+// that snapshot arrived. Over a long session those two diverge from what
+// the Huckleberry mobile app shows (background JS sleeps, network latency,
+// clock skew). Re-fetch state every NURSING_RESYNC_INTERVAL_S seconds while
+// active so the displayed timer snaps back to HA's truth.
+const NURSING_RESYNC_INTERVAL_S = 30;
+
 // ----- App state ----------------------------------------------------------
 
 let selectedIndex = 0;
@@ -277,12 +285,24 @@ function showStatus(text, hint) {
 
 // Tick the time line + clock banner every second so "X ago", the active
 // timer, and the current time stay live without re-fetching from HA.
+// During an active nursing session also fire a state re-sync every
+// NURSING_RESYNC_INTERVAL_S so the local count-up doesn't drift from
+// what the Huckleberry app shows.
 let tickHandle = null;
+let lastResyncSec = 0;
 function startTicker() {
   if (tickHandle !== null) return;
   tickHandle = setInterval(() => {
     updateBanner();
     if (!busy) updateTimeLine();
+
+    if (state.nursingState === "active" && !busy) {
+      const now = nowSec();
+      if (now - lastResyncSec >= NURSING_RESYNC_INTERVAL_S) {
+        lastResyncSec = now;
+        fetchState();
+      }
+    }
   }, 1000);
 }
 
