@@ -4,6 +4,47 @@ All notable changes to Baby StoneFruit. The format is loosely based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project
 follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.2] — 2026-05-16
+
+UI polish for legibility on both screen shapes.
+
+### Changed
+- **Taller clock banner** (22 → 30 px) with a larger bold font
+  (14 → 18 px). The current time is now easy to read at a glance
+  without leaning close to the watch.
+- **"Up/Down • Select" hint repositioned per device shape** — on the
+  round Pebble 2 Duo (Gabbro) the hint moves up from the very edge of
+  the screen into the safe zone so it no longer clips against the
+  circular bezel. The rectangular Pebble Time 2 (Emery) gets a small
+  bump too for better spacing.
+- **Black outline ring on all four emoji icons** (diaper, bottle,
+  nursing, end-nursing). Twemoji's stock icons washed out against the
+  bright background colors; the outline gives them clear edges on the
+  yellow / purple / pink / orange action screens. Icons stay 72×72
+  palette-mode PNGs so runtime texture memory is unchanged.
+
+### Repository
+- New `experiment/audio-tones` branch holds an exploratory tone library
+  for the Pebble Time 2 speaker (startup confirm chirp + helpers for
+  hover / confirm / pause / resume / completed events). Not merged to
+  main — Moddable's Pebble SDK doesn't currently expose a JS speaker
+  module and there's no clean way to trigger C-side tones from JS-side
+  button events without conflicting with Moddable's AppMessage handlers.
+  Picked back up if/when Moddable ships JS speaker bindings.
+- New `docs/sound-effects-attribution` (merged via PR #55) credits
+  MATUSTRM's CC0 UI sound effects as "planned" — intended for use if
+  audio integration becomes feasible.
+
+### Known limitations carried over from 1.0.1
+- **Nursing timer can drift from the Huckleberry mobile app** over a
+  long active session, because the watch shows a snapshot of HA's
+  authoritative duration plus a locally-counted offset. A periodic
+  re-sync was prototyped (see #60 / #61) but adding even 20 lines of
+  JS to `main.js` exceeds the device's XS chunk-memory budget. The
+  next iteration will move the re-sync logic to `pkjs/index.js` (phone
+  side, where memory is plentiful) so the watch keeps its current
+  zero-footprint JS layout.
+
 ## [1.0.1] — 2026-05-11
 
 Re-published binary + documentation. No code changes.
