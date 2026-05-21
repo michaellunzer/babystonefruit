@@ -159,9 +159,14 @@ const App = Application.template($ => ({
           style: labelStyle,
           string: ACTIONS[selectedIndex].label,
         }),
+        // SVGImage draws the PDC at its intrinsic data dimensions (72×72)
+        // from the element's top-left. Don't use left:0/right:0 — that
+        // makes the element fill the container width and the icon sticks
+        // to the left edge. Use explicit width/height instead and omit
+        // horizontal alignment so Piu auto-centers the element.
         SVGImage($, {
           anchor: "icon",
-          left: 0, right: 0, top: 64, height: 72,
+          width: 72, height: 72, top: 64,
           path: ACTIONS[selectedIndex].icon,
         }),
         Label($, {
