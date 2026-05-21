@@ -28,10 +28,10 @@
         "projectType": "moddable",
         "resources": {
             "media": [
-                { "type": "bitmap", "name": "IMAGE_DIAPER", "file": "img/poop.png" },
-                { "type": "bitmap", "name": "IMAGE_BOTTLE", "file": "img/bottle.png" },
-                { "type": "bitmap", "name": "IMAGE_NURSE",  "file": "img/nursing.png" },
-                { "type": "bitmap", "name": "IMAGE_STOP",   "file": "img/stop.png" }
+                { "type": "raw", "name": "IMAGE_DIAPER", "file": "img/poop.pdc" },
+                { "type": "raw", "name": "IMAGE_BOTTLE", "file": "img/bottle.pdc" },
+                { "type": "raw", "name": "IMAGE_NURSE",  "file": "img/nursing.pdc" },
+                { "type": "raw", "name": "IMAGE_STOP",   "file": "img/stop.pdc" }
             ]
         },
         "sdkVersion": "3",

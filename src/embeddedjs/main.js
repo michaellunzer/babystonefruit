@@ -23,24 +23,17 @@ const COLORS = {
 
 const TEXT_RED = "#B12525";
 
-// ----- Image resource constants -------------------------------------------
-//
-// new Texture(N) on Pebble takes a numeric resource ID — names like
-// "IMAGE_DIAPER" can't be passed to it directly. The named constants below
-// map identifiers to their actual runtime IDs.
-
-const IMAGE_DIAPER = 1;
-const IMAGE_BOTTLE = 2;
-const IMAGE_NURSE  = 3;
-const IMAGE_STOP   = 4;
-
 // ----- Action catalog -----------------------------------------------------
+//
+// `icon` is the filename of a PDC (Pebble Draw Command) vector image in
+// resources/img/. Piu's SVGImage element loads it by path at render time —
+// no Texture / numeric resource ID dance needed.
 
 const ACTIONS = [
-  { label: "Diaper",      action: "diaper",    color: COLORS.diaper,   image: IMAGE_DIAPER, kind: "diaper" },
-  { label: "Bottle",      action: "bottle",    color: COLORS.bottle,   image: IMAGE_BOTTLE, kind: "bottle" },
-  { label: "Nurse",       action: "nurse",     color: COLORS.nurse,    image: IMAGE_NURSE,  kind: "nurse"  },
-  { label: "End Nursing", action: "nurse_end", color: COLORS.endNurse, image: IMAGE_STOP,   kind: "nurseEnd" },
+  { label: "Diaper",      action: "diaper",    color: COLORS.diaper,   icon: "poop.pdc",    kind: "diaper" },
+  { label: "Bottle",      action: "bottle",    color: COLORS.bottle,   icon: "bottle.pdc",  kind: "bottle" },
+  { label: "Nurse",       action: "nurse",     color: COLORS.nurse,    icon: "nursing.pdc", kind: "nurse"  },
+  { label: "End Nursing", action: "nurse_end", color: COLORS.endNurse, icon: "stop.pdc",    kind: "nurseEnd" },
 ];
 
 const HINT_DEFAULT  = "Up/Down  •  Select";
@@ -127,12 +120,6 @@ function skinForIndex(i) {
   return skins.nurse;
 }
 
-function makeIconSkin(textureId) {
-  const tex = new Texture(textureId);
-  return new Skin({ texture: tex, width: tex.width, height: tex.height });
-}
-const iconSkins = [null, makeIconSkin(1), makeIconSkin(2), makeIconSkin(3), makeIconSkin(4)];
-
 const labelStyle    = new Style({ font: "bold 24px Gothic", color: "black",  horizontal: "center", vertical: "middle" });
 const timeStyleBk   = new Style({ font: "bold 18px Gothic", color: "black",  horizontal: "center", vertical: "middle" });
 const timeStyleRed  = new Style({ font: "bold 18px Gothic", color: TEXT_RED, horizontal: "center", vertical: "middle" });
@@ -172,10 +159,10 @@ const App = Application.template($ => ({
           style: labelStyle,
           string: ACTIONS[selectedIndex].label,
         }),
-        Content($, {
+        SVGImage($, {
           anchor: "icon",
           left: 0, right: 0, top: 64, height: 72,
-          skin: iconSkins[ACTIONS[selectedIndex].image],
+          path: ACTIONS[selectedIndex].icon,
         }),
         Label($, {
           anchor: "time",
@@ -263,7 +250,8 @@ function renderAction() {
   const a = ACTIONS[selectedIndex];
   refs.main.string = a.label;
   refs.bg.skin     = skinForIndex(selectedIndex);
-  refs.icon.skin   = iconSkins[a.image];
+  refs.icon.path   = a.icon;
+  refs.icon.visible = true;
   updateTimeLine();
 }
 
@@ -272,7 +260,7 @@ function showStatus(text, hint) {
   refs.time.string = "";
   refs.hint.string = hint || "";
   refs.bg.skin     = skins.status;
-  refs.icon.skin   = null;
+  refs.icon.visible = false;
 }
 
 // Tick the time line + clock banner every second so "X ago", the active
