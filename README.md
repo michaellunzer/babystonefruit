@@ -176,12 +176,15 @@ Any small Python service exposing HTTPS works as a drop-in replacement for HA in
 ├── package.json                # Pebble project + CloudPebble env-var refs + resources
 ├── config/
 │   └── config.html             # Pebble in-app settings page (served via GitHub Pages)
-├── resources/img/              # Twemoji icons as PDC vectors (poop, bottle, nursing, stop)
 ├── tools/                      # svg2pdc converter + Twemoji SVG sources
 └── src/
     ├── embeddedjs/             # Runs on the watch (Moddable XS)
     │   ├── main.js             # UI, button input, AppMessage to pkjs, time ticker
-    │   └── manifest.json
+    │   ├── manifest.json
+    │   ├── poop.pdc            # Twemoji icons as PDC vectors —
+    │   ├── bottle.pdc          #   loaded by Moddable resources system
+    │   ├── nursing.pdc         #   and rendered via Piu's SVGImage element
+    │   └── stop.pdc
     ├── pkjs/
     │   └── index.js            # Runs on the phone — HA fetch + state fetch + settings
     └── c/
