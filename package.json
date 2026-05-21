@@ -27,12 +27,7 @@
         ],
         "projectType": "moddable",
         "resources": {
-            "media": [
-                { "type": "raw", "name": "IMAGE_DIAPER", "file": "img/poop.pdc" },
-                { "type": "raw", "name": "IMAGE_BOTTLE", "file": "img/bottle.pdc" },
-                { "type": "raw", "name": "IMAGE_NURSE",  "file": "img/nursing.pdc" },
-                { "type": "raw", "name": "IMAGE_STOP",   "file": "img/stop.pdc" }
-            ]
+            "media": []
         },
         "sdkVersion": "3",
         "targetPlatforms": [
