@@ -176,7 +176,8 @@ Any small Python service exposing HTTPS works as a drop-in replacement for HA in
 ├── package.json                # Pebble project + CloudPebble env-var refs + resources
 ├── config/
 │   └── config.html             # Pebble in-app settings page (served via GitHub Pages)
-├── resources/img/              # Twemoji PNGs (poop, bottle, nursing, stop)
+├── resources/img/              # Twemoji icons as PDC vectors (poop, bottle, nursing, stop)
+├── tools/                      # svg2pdc converter + Twemoji SVG sources
 └── src/
     ├── embeddedjs/             # Runs on the watch (Moddable XS)
     │   ├── main.js             # UI, button input, AppMessage to pkjs, time ticker
@@ -193,7 +194,7 @@ The settings page is hosted via GitHub Pages at <https://babystonefruit.michaell
 
 - **Bottle has no "session" concept.** Huckleberry models a bottle feeding as a one-shot event with `amount_ml`. The watch logs 120 ml of formula instantly when you press Select. There's no live bottle timer because there's no server-side equivalent of `pause_nursing`.
 - **Single-child only for now.** The integration supports multiple children; the watch app currently uses one configured `HA_kid_device_id`. An in-app child picker is a reasonable future addition.
-- **Pebble app size is small.** All four emojis are bundled as 72×72 PNGs — total app size is well under the watch's storage budget, but adding much more (sound, additional icons) requires care.
+- **Pebble app size is small.** All four emojis are bundled as PDC (Pebble Draw Command) vectors — each ~200–600 bytes on disk and ~250 bytes RAM, vs ~20 KB RAM per decoded 72×72 RGBA bitmap. Frees enough memory headroom on the device to actually add features.
 - **Polling cadence.** The watch refreshes state on startup and after each successful log. Externally-triggered changes (e.g. logging from the Huckleberry mobile app) won't show up until the next watch action.
 
 ## Changelog
@@ -207,7 +208,8 @@ See [`CHANGELOG.md`](./CHANGELOG.md). Current version: **1.0.2**.
 - **[Moddable](https://www.moddable.com/)** — the JS runtime used by the modern Pebble SDK.
 - **[Rebble](https://rebble.io/)** — keeping Pebble alive years after the original company shut down.
 - **[CloudPebble](https://cloudpebble.rebble.io/)** — the web IDE used to build and install this.
-- **[Twemoji](https://github.com/jdecked/twemoji)** (MIT) — the emoji bitmaps in `resources/img/`.
+- **[Twemoji](https://github.com/jdecked/twemoji)** (MIT) — source SVGs for the emoji icons, converted to PDC for runtime efficiency. Sources kept in `tools/`.
+- **[svg2pdc.py](https://github.com/pebble-examples/cards-example/blob/master/tools/svg2pdc.py)** — Pebble Examples' SVG-to-PDC converter (ported to Python 3).
 - **Home Assistant** — the glue layer that makes calling Huckleberry from a watch a sane thing to do at all.
 
 ## Built with Claude
