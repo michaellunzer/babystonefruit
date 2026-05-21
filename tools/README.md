@@ -18,12 +18,21 @@ keeps icons at a few hundred bytes each in RAM instead of ~20 KB per
 ## Reproducing
 
 ```bash
+# Scale the source SVG from Twemoji's native 36×36 viewBox to 72×72
+# (so the PDC's intrinsic data dimensions match the watch icon area)
+python3 scale_svg.py poop.svg poop.svg
+
+# Convert to PDC
 python3 svg2pdc.py poop.svg
 ```
 
-Generates `poop.pdc` alongside the input. The script warns about coordinates
-being snapped to the nearest 0.5-pixel grid (Pebble's fixed-point precision),
-which is harmless.
+The scale step is required because Piu's `SVGImage` element renders the PDC at
+its intrinsic data size (read from the viewBox at convert time). At 36×36 the
+icons would draw as small thumbnails inside their 72×72 layout box. svg2pdc.py
+does not interpret `transform="scale(...)"`, so we pre-scale the coordinates.
+
+Both scripts emit some `Invalid point` warnings about coordinates being snapped
+to Pebble's 0.5-pixel grid — harmless.
 
 ## Python 3 fixes vs upstream svg2pdc.py
 
