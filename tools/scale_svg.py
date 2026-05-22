@@ -23,18 +23,63 @@ NUMBER_RE = re.compile(r"[-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?")
 
 
 def scale_attr_numbers(value: str, factor: float) -> str:
-    """Multiply every number in a string by `factor`, leaving non-numeric
-    characters (path commands, separators) untouched."""
+    """Multiply every number in a string by `factor`. Always emits a space
+    after each replaced number so that adjacent SVG-compact tokens like
+    "30.312.276" (two numbers without separator) don't fuse into a single
+    ambiguous "60.624.552" after scaling."""
 
     def repl(m: re.Match) -> str:
         n = float(m.group(0)) * factor
-        # Compact representation: integer if whole, else trimmed decimal.
         if n == int(n):
-            return str(int(n))
-        # Avoid float artifacts like 18.000000000000004 — use 6 decimals.
-        return f"{n:.6f}".rstrip("0").rstrip(".")
+            s = str(int(n))
+        else:
+            # Avoid float artifacts like 18.000000000000004 — use 6 decimals.
+            s = f"{n:.6f}".rstrip("0").rstrip(".")
+        # Trailing space guarantees a separator between adjacent numbers.
+        # Multiple spaces are collapsed below.
+        return s + " "
 
-    return NUMBER_RE.sub(repl, value)
+    out = NUMBER_RE.sub(repl, value)
+    # Collapse runs of whitespace introduced by the trailing-space trick.
+    return re.sub(r"\s+", " ", out).strip()
+
+
+def flatten_curves(d_str: str, samples: int = 12) -> str:
+    """Parse a path's d attribute, expand every CubicBezier / QuadraticBezier /
+    Arc into `samples` short line segments. Lines, Moves and Closes pass
+    through unchanged.
+
+    svg2pdc.py captures only the start point of each path segment; for
+    paths made of a small number of long Bezier arcs (e.g. a crescent
+    moon = 3 arcs), the result collapses into a triangle of vertices.
+    Pre-flattening to a polyline gives svg2pdc enough vertices to render
+    a smooth-looking shape."""
+    try:
+        import svg.path
+        path = svg.path.parse_path(d_str)
+    except Exception:
+        return d_str
+
+    def fmt(c):
+        return f"{c.real:g} {c.imag:g}"
+
+    parts = []
+    for seg in path:
+        name = seg.__class__.__name__
+        if name == "Move":
+            parts.append(f"M {fmt(seg.end)}")
+        elif name == "Line":
+            parts.append(f"L {fmt(seg.end)}")
+        elif name == "Close":
+            parts.append("Z")
+        elif name in ("CubicBezier", "QuadraticBezier", "Arc"):
+            for i in range(1, samples + 1):
+                t = i / samples
+                parts.append(f"L {fmt(seg.point(t))}")
+        else:
+            # Unknown segment type — drop it rather than corrupt the path.
+            pass
+    return " ".join(parts)
 
 
 def scale_svg(src_path: str, dst_path: str, factor: float) -> None:
@@ -63,7 +108,15 @@ def scale_svg(src_path: str, dst_path: str, factor: float) -> None:
         if el.tag.endswith("}path") or el.tag == "path":
             d = el.get("d")
             if d:
-                el.set("d", scale_attr_numbers(d, factor))
+                d = scale_attr_numbers(d, factor)
+                # svg2pdc only samples the START of each path segment, so a
+                # crescent moon made of three big Bezier arcs renders as a
+                # triangle. Flatten every Bezier/Arc into N short line
+                # segments so svg2pdc gets enough vertices. 6 samples is
+                # smooth enough at 72-px and keeps PDC sizes / runtime
+                # texture memory down.
+                d = flatten_curves(d, samples=6)
+                el.set("d", d)
         for attr in list(el.attrib):
             local = attr.rsplit("}", 1)[-1]
             if local in coord_attrs:

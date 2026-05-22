@@ -105,6 +105,10 @@ function buildCall(action) {
     case "nurse_end":      return { path: "huckleberry/complete_nursing", body: {} };
     case "pause_nursing":  return { path: "huckleberry/pause_nursing",    body: {} };
     case "resume_nursing": return { path: "huckleberry/resume_nursing",   body: {} };
+    case "sleep":          return { path: "huckleberry/start_sleep",      body: {} };
+    case "sleep_end":      return { path: "huckleberry/complete_sleep",   body: {} };
+    case "pause_sleep":    return { path: "huckleberry/pause_sleep",      body: {} };
+    case "resume_sleep":   return { path: "huckleberry/resume_sleep",     body: {} };
     default:               return null;
   }
 }
@@ -186,6 +190,7 @@ function fetchState() {
     "{%- set diaper  = device_entities(d) | select('search', '(?<!_last)_diaper$')  | first -%}" +
     "{%- set bottle  = device_entities(d) | select('search', '(?<!_last)_bottle$')  | first -%}" +
     "{%- set nursing = device_entities(d) | select('search', '(?<!_last)_nursing$') | first -%}" +
+    "{%- set sleep   = device_entities(d) | select('search', '(?<!_last)_sleep$')   | first -%}" +
     "{" +
       "\"diaper_entity\": \"{{ diaper }}\"," +
       "\"diaper\":  \"{{ states(diaper) }}\"," +
@@ -194,7 +199,10 @@ function fetchState() {
       "\"current_start\":  \"{{ state_attr(nursing, 'current_start') }}\"," +
       "\"previous_start\": \"{{ state_attr(nursing, 'previous_start') }}\"," +
       "\"left_duration\":  \"{{ state_attr(nursing, 'current_left_duration') }}\"," +
-      "\"right_duration\": \"{{ state_attr(nursing, 'current_right_duration') }}\"" +
+      "\"right_duration\": \"{{ state_attr(nursing, 'current_right_duration') }}\"," +
+      "\"sleep\":          \"{{ states(sleep) }}\"," +
+      "\"sleep_start\":    \"{{ state_attr(sleep, 'current_start') }}\"," +
+      "\"sleep_previous\": \"{{ state_attr(sleep, 'previous_start') }}\"" +
     "}";
 
   const url = HA_URL.replace(/\/+$/, "") + "/api/template";
@@ -225,6 +233,9 @@ function fetchState() {
       parsed.nursing === "paused" ? "paused" : "none";
     const elapsedSec =
       isoDurationToSec(parsed.left_duration) + isoDurationToSec(parsed.right_duration);
+    const sleepState =
+      parsed.sleep === "active" ? "active" :
+      parsed.sleep === "paused" ? "paused" : "none";
     const payload = {
       RESULT: "state",
       LAST_DIAPER:     isoToEpoch(parsed.diaper),
@@ -233,6 +244,9 @@ function fetchState() {
       NURSING_START:   isoToEpoch(parsed.current_start),
       NURSING_LAST:    isoToEpoch(parsed.previous_start),
       NURSING_ELAPSED: elapsedSec,
+      SLEEP_STATE:     sleepState,
+      SLEEP_START:     isoToEpoch(parsed.sleep_start),
+      SLEEP_LAST:      isoToEpoch(parsed.sleep_previous),
     };
     console.log("pkjs fetchState: diaper_entity=" + parsed.diaper_entity
       + " diaper_raw=" + parsed.diaper

@@ -23,7 +23,11 @@
             "NURSING_STATE",
             "NURSING_START",
             "NURSING_LAST",
-            "NURSING_ELAPSED"
+            "NURSING_ELAPSED",
+            "SLEEP_STATE",
+            "SLEEP_START",
+            "SLEEP_LAST",
+            "SLEEP_ELAPSED"
         ],
         "projectType": "moddable",
         "resources": {
