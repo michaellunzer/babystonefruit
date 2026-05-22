@@ -17,7 +17,7 @@ import Message from "pebble/message";
 const COLORS = {
   diaper:    "#F4C53D",
   nurse:     "#F69EB1",
-  endNurse:  "#FF7A4F",
+  endNurse:  "#CCD6DD",
   bottle:    "#A084E8",
 };
 
@@ -159,16 +159,15 @@ const App = Application.template($ => ({
           style: labelStyle,
           string: ACTIONS[selectedIndex].label,
         }),
-        // SVGImage draws the PDC at its intrinsic data dimensions (72×72)
-        // from the element's top-left. Don't use left:0/right:0 — that
-        // makes the element fill the container width and the icon sticks
-        // to the left edge. Use explicit width/height instead and omit
-        // horizontal alignment so Piu auto-centers the element.
-        SVGImage($, {
-          anchor: "icon",
-          width: 72, height: 72, top: 64,
-          path: ACTIONS[selectedIndex].icon,
-        }),
+        // One SVGImage per action — Piu's SVGImage loads its PDC at
+        // construct time and has no `path` setter, so we can't swap the
+        // icon on a single element. Render all four stacked at the same
+        // spot and toggle .visible per selection in renderAction().
+        // Memory cost is negligible (~250 B per PDC vs 20 KB per RGBA).
+        SVGImage($, { anchor: "iconDiaper",  width: 72, height: 72, top: 64, path: "poop.pdc" }),
+        SVGImage($, { anchor: "iconBottle",  width: 72, height: 72, top: 64, path: "bottle.pdc" }),
+        SVGImage($, { anchor: "iconNurse",   width: 72, height: 72, top: 64, path: "nursing.pdc" }),
+        SVGImage($, { anchor: "iconStop",    width: 72, height: 72, top: 64, path: "stop.pdc" }),
         Label($, {
           anchor: "time",
           left: 0, right: 0, top: 148, height: 20,
@@ -186,7 +185,9 @@ const App = Application.template($ => ({
   ],
 }));
 
-const refs = { banner: null, bg: null, main: null, icon: null, time: null, hint: null };
+const refs = { banner: null, bg: null, main: null,
+                iconDiaper: null, iconBottle: null, iconNurse: null, iconStop: null,
+                time: null, hint: null };
 const app = new App(refs, { displayListLength: 4608 });
 
 function bannerText() {
@@ -255,8 +256,10 @@ function renderAction() {
   const a = ACTIONS[selectedIndex];
   refs.main.string = a.label;
   refs.bg.skin     = skinForIndex(selectedIndex);
-  refs.icon.path   = a.icon;
-  refs.icon.visible = true;
+  refs.iconDiaper.visible = (a.kind === "diaper");
+  refs.iconBottle.visible = (a.kind === "bottle");
+  refs.iconNurse.visible  = (a.kind === "nurse");
+  refs.iconStop.visible   = (a.kind === "nurseEnd");
   updateTimeLine();
 }
 
@@ -265,7 +268,10 @@ function showStatus(text, hint) {
   refs.time.string = "";
   refs.hint.string = hint || "";
   refs.bg.skin     = skins.status;
-  refs.icon.visible = false;
+  refs.iconDiaper.visible = false;
+  refs.iconBottle.visible = false;
+  refs.iconNurse.visible  = false;
+  refs.iconStop.visible   = false;
 }
 
 // Tick the time line + clock banner every second so "X ago", the active

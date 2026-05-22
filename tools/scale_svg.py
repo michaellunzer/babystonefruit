@@ -69,6 +69,67 @@ def scale_svg(src_path: str, dst_path: str, factor: float) -> None:
             if local in coord_attrs:
                 el.set(attr, scale_attr_numbers(el.get(attr), factor))
 
+    # Drop compound paths (paths whose `d` has more than one move-to).
+    # svg2pdc parses them as one continuous polyline, drawing a stray
+    # connector line between subpaths — that's the diagonal artefact on
+    # the stop emoji's gray frame. Even if we kept only the first subpath,
+    # it's usually the outer "frame" shape that would draw over earlier
+    # paths and hide them. Dropping compound paths entirely yields the
+    # cleanest result (e.g. stop sign becomes just the red octagon).
+    SVG_NS = "{http://www.w3.org/2000/svg}"
+    import re as _re
+    MOVE_RE = _re.compile(r"[Mm]")
+    for parent in list(root.iter()):
+        for child in list(parent):
+            tag = child.tag
+            if tag != "path" and tag != f"{SVG_NS}path":
+                continue
+            d = child.get("d", "")
+            if len(MOVE_RE.findall(d)) > 1:
+                parent.remove(child)
+
+    # Add a thin black stroke to every path for a uniform outlined look.
+    # Pebble's renderer draws stroke + fill in one pass via svg2pdc's path
+    # command, so setting stroke=black, stroke-width=1 on the SVG is enough.
+    for el in root.iter():
+        tag = el.tag
+        if tag == "path" or tag == f"{SVG_NS}path":
+            if "stroke" not in el.attrib:
+                el.set("stroke", "#000000")
+            if "stroke-width" not in el.attrib:
+                el.set("stroke-width", "2")
+
+    # Convert <circle> elements to <path> 24-gons.
+    # svg2pdc.py's path parser uses only the START point of each path
+    # segment, so SVG arcs and beziers collapse to single points (no
+    # curve sampling). To get a recognizably round shape, we explicitly
+    # emit a 24-sided polygon approximating each circle. 24 sides is the
+    # sweet spot — smooth enough to read as a circle on a 200-px screen,
+    # cheap on the command-list byte budget.
+    import math
+    SVG_NS = "{http://www.w3.org/2000/svg}"
+    SEGMENTS = 24
+    for parent in list(root.iter()):
+        for circle in list(parent):
+            tag = circle.tag
+            if tag != "circle" and tag != f"{SVG_NS}circle":
+                continue
+            cx = float(circle.get("cx", "0"))
+            cy = float(circle.get("cy", "0"))
+            r = float(circle.get("r", "0"))
+            pts = []
+            for i in range(SEGMENTS):
+                theta = 2 * math.pi * i / SEGMENTS
+                pts.append((cx + r * math.cos(theta), cy + r * math.sin(theta)))
+            d = "M " + " L ".join(f"{x:g} {y:g}" for x, y in pts) + " Z"
+            new_path = ET.SubElement(parent, f"{SVG_NS}path")
+            new_path.set("d", d)
+            for attr, value in circle.attrib.items():
+                if attr.rsplit("}", 1)[-1] in {"cx", "cy", "r"}:
+                    continue
+                new_path.set(attr, value)
+            parent.remove(circle)
+
     tree.write(dst_path, encoding="utf-8", xml_declaration=False)
 
 

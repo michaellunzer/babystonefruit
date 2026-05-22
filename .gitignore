@@ -1,6 +1,4 @@
+# Local SDK build artifacts
 build/
-node_modules/
-.venv/
-__pycache__/
-*.pyc
-.env
+.lock-waf_*
+package-lock.json
