@@ -276,12 +276,21 @@ function showStatus(text, hint) {
 
 // Tick the time line + clock banner every second so "X ago", the active
 // timer, and the current time stay live without re-fetching from HA.
+// Every SYNC_TICKS seconds, also pull fresh state from HA so pause /
+// resume / stop actions taken from the Huckleberry mobile app reflect
+// on the watch without re-opening the app.
+const SYNC_TICKS = 15;
 let tickHandle = null;
+let ticksSinceSync = 0;
 function startTicker() {
   if (tickHandle !== null) return;
   tickHandle = setInterval(() => {
     updateBanner();
     if (!busy) updateTimeLine();
+    if (++ticksSinceSync >= SYNC_TICKS && !busy) {
+      ticksSinceSync = 0;
+      fetchState();
+    }
   }, 1000);
 }
 
