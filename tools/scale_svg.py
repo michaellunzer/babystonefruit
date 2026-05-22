@@ -69,24 +69,111 @@ def scale_svg(src_path: str, dst_path: str, factor: float) -> None:
             if local in coord_attrs:
                 el.set(attr, scale_attr_numbers(el.get(attr), factor))
 
-    # Drop compound paths (paths whose `d` has more than one move-to).
+    # Handle compound paths (paths whose `d` has more than one move-to).
     # svg2pdc parses them as one continuous polyline, drawing a stray
-    # connector line between subpaths — that's the diagonal artefact on
-    # the stop emoji's gray frame. Even if we kept only the first subpath,
-    # it's usually the outer "frame" shape that would draw over earlier
-    # paths and hide them. Dropping compound paths entirely yields the
-    # cleanest result (e.g. stop sign becomes just the red octagon).
+    # connector line between subpaths.
+    #
+    # Strategy depends on subpath size:
+    #   * SMALL subpaths (each spans < 50% of the viewBox) → split into
+    #     separate <path> elements so they render as independent shapes.
+    #     Example: the bottle emoji's three measurement marks.
+    #   * LARGE subpath (any spans ≥ 50%) → treat as a "frame with hole"
+    #     where the outer subpath would cover earlier paths if drawn solid.
+    #     Drop the whole compound path. Example: stop emoji's gray frame.
     SVG_NS = "{http://www.w3.org/2000/svg}"
     import re as _re
     MOVE_RE = _re.compile(r"[Mm]")
+    NUM_RE = _re.compile(r"-?\d+\.?\d*(?:[eE][-+]?\d+)?")
+    vb_parts = (root.get("viewBox") or "0 0 72 72").split()
+    vb_w = float(vb_parts[2]) if len(vb_parts) >= 4 else 72.0
+
+    def split_into_subpaths(d_str):
+        """Parse the full d string, then re-serialize each Move-To group as
+        a standalone absolute path. Returns a list of (sub_d, bbox_extent).
+
+        We have to do it this way because subpaths often start with lowercase
+        `m` (relative move) — pulling the substring out doesn't track the
+        pen position, so the standalone subpath ends up positioned at the
+        origin instead of where it actually renders."""
+        import svg.path
+        try:
+            full = svg.path.parse_path(d_str)
+        except Exception:
+            return []
+        # svg.path Move object marks a subpath boundary.
+        groups = []
+        cur = []
+        for seg in full:
+            if isinstance(seg, svg.path.Move):
+                if cur:
+                    groups.append(cur)
+                cur = [seg]
+            else:
+                cur.append(seg)
+        if cur:
+            groups.append(cur)
+
+        def fmt(c):
+            return f"{c.real:g} {c.imag:g}"
+
+        result = []
+        for grp in groups:
+            xs, ys = [], []
+            for seg in grp:
+                xs.append(seg.start.real); ys.append(seg.start.imag)
+                xs.append(seg.end.real);   ys.append(seg.end.imag)
+            ext = max(max(xs) - min(xs), max(ys) - min(ys)) if xs else 0
+            # Manually re-serialize each segment with absolute coordinates.
+            parts = []
+            for seg in grp:
+                name = seg.__class__.__name__
+                if name == "Move":
+                    parts.append(f"M {fmt(seg.end)}")
+                elif name == "Line":
+                    parts.append(f"L {fmt(seg.end)}")
+                elif name == "CubicBezier":
+                    parts.append(f"C {fmt(seg.control1)} {fmt(seg.control2)} {fmt(seg.end)}")
+                elif name == "QuadraticBezier":
+                    parts.append(f"Q {fmt(seg.control)} {fmt(seg.end)}")
+                elif name == "Arc":
+                    rot = getattr(seg, "rotation", 0)
+                    large = 1 if seg.large_arc else 0
+                    sweep = 1 if seg.sweep else 0
+                    parts.append(f"A {seg.radius.real:g} {seg.radius.imag:g} {rot:g} {large} {sweep} {fmt(seg.end)}")
+                elif name == "Close":
+                    parts.append("Z")
+            sub_d = " ".join(parts)
+            result.append((sub_d, ext))
+        return result
+
     for parent in list(root.iter()):
         for child in list(parent):
             tag = child.tag
             if tag != "path" and tag != f"{SVG_NS}path":
                 continue
             d = child.get("d", "")
-            if len(MOVE_RE.findall(d)) > 1:
+            if len(MOVE_RE.findall(d)) <= 1:
+                continue
+            subs = split_into_subpaths(d)
+            if not subs:
+                continue
+
+            # Large subpath → drop the whole compound path.
+            if any(ext > 0.5 * vb_w for _sd, ext in subs):
                 parent.remove(child)
+                continue
+
+            # All small → split into separate path elements that inherit
+            # the original attributes (fill, etc.).
+            idx = list(parent).index(child)
+            parent.remove(child)
+            for offset, (sub_d, _ext) in enumerate(subs):
+                new_path = ET.Element(f"{SVG_NS}path")
+                for k, v in child.attrib.items():
+                    if k.rsplit("}", 1)[-1] != "d":
+                        new_path.set(k, v)
+                new_path.set("d", sub_d)
+                parent.insert(idx + offset, new_path)
 
     # Add a thin black stroke to every path for a uniform outlined look.
     # Pebble's renderer draws stroke + fill in one pass via svg2pdc's path
