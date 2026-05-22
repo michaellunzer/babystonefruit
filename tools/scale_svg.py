@@ -69,10 +69,28 @@ def scale_svg(src_path: str, dst_path: str, factor: float) -> None:
             if local in coord_attrs:
                 el.set(attr, scale_attr_numbers(el.get(attr), factor))
 
+    # Drop compound paths (paths whose `d` has more than one move-to).
+    # svg2pdc parses them as one continuous polyline, drawing a stray
+    # connector line between subpaths — that's the diagonal artefact on
+    # the stop emoji's gray frame. Even if we kept only the first subpath,
+    # it's usually the outer "frame" shape that would draw over earlier
+    # paths and hide them. Dropping compound paths entirely yields the
+    # cleanest result (e.g. stop sign becomes just the red octagon).
+    SVG_NS = "{http://www.w3.org/2000/svg}"
+    import re as _re
+    MOVE_RE = _re.compile(r"[Mm]")
+    for parent in list(root.iter()):
+        for child in list(parent):
+            tag = child.tag
+            if tag != "path" and tag != f"{SVG_NS}path":
+                continue
+            d = child.get("d", "")
+            if len(MOVE_RE.findall(d)) > 1:
+                parent.remove(child)
+
     # Add a thin black stroke to every path for a uniform outlined look.
     # Pebble's renderer draws stroke + fill in one pass via svg2pdc's path
     # command, so setting stroke=black, stroke-width=1 on the SVG is enough.
-    SVG_NS = "{http://www.w3.org/2000/svg}"
     for el in root.iter():
         tag = el.tag
         if tag == "path" or tag == f"{SVG_NS}path":
