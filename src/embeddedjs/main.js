@@ -20,6 +20,7 @@ const COLORS = {
   endNurse:  "#CCD6DD",
   bottle:    "#A084E8",
   sleep:     "#5B6EAE",   // dusky blue — night sky
+  endSleep:  "#FFE8A3",   // sunrise cream
 };
 
 const TEXT_RED = "#B12525";
@@ -36,6 +37,7 @@ const ACTIONS = [
   { label: "Nurse",       action: "nurse",     color: COLORS.nurse,    icon: "nursing.pdc", kind: "nurse"  },
   { label: "End Nursing", action: "nurse_end", color: COLORS.endNurse, icon: "stop.pdc",    kind: "nurseEnd" },
   { label: "Sleep",       action: "sleep",     color: COLORS.sleep,    icon: "moon.pdc",    kind: "sleep" },
+  { label: "End Sleep",   action: "sleep_end", color: COLORS.endSleep, icon: "sun.pdc",     kind: "sleepEnd" },
 ];
 
 const HINT_DEFAULT  = "Up/Down  •  Select";
@@ -102,6 +104,7 @@ function lastTimestampFor(kind) {
   if (kind === "nurse")     return state.lastNurse;
   if (kind === "nurseEnd")  return state.lastNurse;
   if (kind === "sleep")     return state.lastSleep;
+  if (kind === "sleepEnd")  return state.lastSleep;
   return 0;
 }
 
@@ -113,6 +116,7 @@ const skins = {
   endNurse: new Skin({ fill: COLORS.endNurse }),
   bottle:   new Skin({ fill: COLORS.bottle   }),
   sleep:    new Skin({ fill: COLORS.sleep    }),
+  endSleep: new Skin({ fill: COLORS.endSleep }),
   status:   new Skin({ fill: "white" }),
 };
 function skinForIndex(i) {
@@ -121,6 +125,7 @@ function skinForIndex(i) {
   if (c === COLORS.bottle)   return skins.bottle;
   if (c === COLORS.endNurse) return skins.endNurse;
   if (c === COLORS.sleep)    return skins.sleep;
+  if (c === COLORS.endSleep) return skins.endSleep;
   return skins.nurse;
 }
 
