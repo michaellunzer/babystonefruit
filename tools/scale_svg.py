@@ -72,10 +72,10 @@ def scale_svg(src_path: str, dst_path: str, factor: float) -> None:
     # Drop compound paths (paths whose `d` has more than one move-to).
     # svg2pdc parses them as one continuous polyline, drawing a stray
     # connector line between subpaths — that's the diagonal artefact on
-    # the stop emoji's gray frame. Even if we kept only the first subpath,
-    # it's usually the outer "frame" shape that would draw over earlier
-    # paths and hide them. Dropping compound paths entirely yields the
-    # cleanest result (e.g. stop sign becomes just the red octagon).
+    # the stop emoji's gray frame and a less-noticeable line under the
+    # bottle's measurement marks. The compound paths in Twemoji are
+    # decorative (gray border, ml-volume marks); dropping them yields
+    # the cleanest look on a small low-res watch screen.
     SVG_NS = "{http://www.w3.org/2000/svg}"
     import re as _re
     MOVE_RE = _re.compile(r"[Mm]")
@@ -84,8 +84,7 @@ def scale_svg(src_path: str, dst_path: str, factor: float) -> None:
             tag = child.tag
             if tag != "path" and tag != f"{SVG_NS}path":
                 continue
-            d = child.get("d", "")
-            if len(MOVE_RE.findall(d)) > 1:
+            if len(MOVE_RE.findall(child.get("d", ""))) > 1:
                 parent.remove(child)
 
     # Add a thin black stroke to every path for a uniform outlined look.
