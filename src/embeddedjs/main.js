@@ -17,7 +17,7 @@ import Message from "pebble/message";
 const COLORS = {
   diaper:    "#F4C53D",
   nurse:     "#F69EB1",
-  endNurse:  "#FF7A4F",
+  endNurse:  "#CCD6DD",
   bottle:    "#A084E8",
 };
 
