@@ -18,21 +18,32 @@ keeps icons at a few hundred bytes each in RAM instead of ~20 KB per
 ## Reproducing
 
 ```bash
-# Scale the source SVG from Twemoji's native 36×36 viewBox to 72×72
-# (so the PDC's intrinsic data dimensions match the watch icon area)
+# 1. Scale Twemoji's 36×36 viewBox to 72×72 (matches the watch icon area)
+#    and convert <circle> elements into 24-gon <path> approximations
 python3 scale_svg.py poop.svg poop.svg
 
-# Convert to PDC
-python3 svg2pdc.py poop.svg
+# 2. Convert to PDC with --precise (Pebble's sub-pixel path format)
+python3 svg2pdc.py --precise poop.svg
 ```
 
-The scale step is required because Piu's `SVGImage` element renders the PDC at
-its intrinsic data size (read from the viewBox at convert time). At 36×36 the
-icons would draw as small thumbnails inside their 72×72 layout box. svg2pdc.py
-does not interpret `transform="scale(...)"`, so we pre-scale the coordinates.
+Why each step:
 
-Both scripts emit some `Invalid point` warnings about coordinates being snapped
-to Pebble's 0.5-pixel grid — harmless.
+- **Scale**: Piu's `SVGImage` renders the PDC at its intrinsic data size (read
+  from the viewBox at convert time). At 36×36 the icons would draw as tiny
+  thumbnails inside their 72×72 layout box. svg2pdc.py does not interpret
+  `transform="scale(...)"`, so we pre-scale the coordinates.
+
+- **Circle → 24-gon**: svg2pdc.py's path parser only takes the **start point**
+  of each path segment, so SVG arcs and Béziers collapse to single points (no
+  curve sampling). To get recognizably round shapes, scale_svg.py explicitly
+  decomposes each `<circle>` into a 24-sided `<path>` polygon. Smooth enough on
+  watch screens, cheap on byte budget.
+
+- **`--precise`**: svg2pdc.py's default (non-precise) mode snaps every point to
+  Pebble's 0.5-pixel grid via individual rounds, which cumulatively corrupts
+  curves into invisible blobs. `--precise` uses 1/8-pixel precision (`PDCI`
+  type 3 commands) — Pebble's preferred format and what the official
+  pebble-examples use.
 
 ## Python 3 fixes vs upstream svg2pdc.py
 

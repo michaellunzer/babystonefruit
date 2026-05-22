@@ -69,6 +69,37 @@ def scale_svg(src_path: str, dst_path: str, factor: float) -> None:
             if local in coord_attrs:
                 el.set(attr, scale_attr_numbers(el.get(attr), factor))
 
+    # Convert <circle> elements to <path> 24-gons.
+    # svg2pdc.py's path parser uses only the START point of each path
+    # segment, so SVG arcs and beziers collapse to single points (no
+    # curve sampling). To get a recognizably round shape, we explicitly
+    # emit a 24-sided polygon approximating each circle. 24 sides is the
+    # sweet spot — smooth enough to read as a circle on a 200-px screen,
+    # cheap on the command-list byte budget.
+    import math
+    SVG_NS = "{http://www.w3.org/2000/svg}"
+    SEGMENTS = 24
+    for parent in list(root.iter()):
+        for circle in list(parent):
+            tag = circle.tag
+            if tag != "circle" and tag != f"{SVG_NS}circle":
+                continue
+            cx = float(circle.get("cx", "0"))
+            cy = float(circle.get("cy", "0"))
+            r = float(circle.get("r", "0"))
+            pts = []
+            for i in range(SEGMENTS):
+                theta = 2 * math.pi * i / SEGMENTS
+                pts.append((cx + r * math.cos(theta), cy + r * math.sin(theta)))
+            d = "M " + " L ".join(f"{x:g} {y:g}" for x, y in pts) + " Z"
+            new_path = ET.SubElement(parent, f"{SVG_NS}path")
+            new_path.set("d", d)
+            for attr, value in circle.attrib.items():
+                if attr.rsplit("}", 1)[-1] in {"cx", "cy", "r"}:
+                    continue
+                new_path.set(attr, value)
+            parent.remove(circle)
+
     tree.write(dst_path, encoding="utf-8", xml_declaration=False)
 
 
