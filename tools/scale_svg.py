@@ -69,6 +69,18 @@ def scale_svg(src_path: str, dst_path: str, factor: float) -> None:
             if local in coord_attrs:
                 el.set(attr, scale_attr_numbers(el.get(attr), factor))
 
+    # Add a thin black stroke to every path for a uniform outlined look.
+    # Pebble's renderer draws stroke + fill in one pass via svg2pdc's path
+    # command, so setting stroke=black, stroke-width=1 on the SVG is enough.
+    SVG_NS = "{http://www.w3.org/2000/svg}"
+    for el in root.iter():
+        tag = el.tag
+        if tag == "path" or tag == f"{SVG_NS}path":
+            if "stroke" not in el.attrib:
+                el.set("stroke", "#000000")
+            if "stroke-width" not in el.attrib:
+                el.set("stroke-width", "2")
+
     # Convert <circle> elements to <path> 24-gons.
     # svg2pdc.py's path parser uses only the START point of each path
     # segment, so SVG arcs and beziers collapse to single points (no
