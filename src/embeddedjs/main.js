@@ -19,6 +19,8 @@ const COLORS = {
   nurse:     "#F69EB1",
   endNurse:  "#CCD6DD",
   bottle:    "#A084E8",
+  sleep:     "#5B6EAE",   // dusky blue — night sky
+  endSleep:  "#FFE8A3",   // sunrise cream
 };
 
 const TEXT_RED = "#B12525";
@@ -34,6 +36,8 @@ const ACTIONS = [
   { label: "Bottle",      action: "bottle",    color: COLORS.bottle,   icon: "bottle.pdc",  kind: "bottle" },
   { label: "Nurse",       action: "nurse",     color: COLORS.nurse,    icon: "nursing.pdc", kind: "nurse"  },
   { label: "End Nursing", action: "nurse_end", color: COLORS.endNurse, icon: "stop.pdc",    kind: "nurseEnd" },
+  { label: "Sleep",       action: "sleep",     color: COLORS.sleep,    icon: "moon.pdc",    kind: "sleep" },
+  { label: "End Sleep",   action: "sleep_end", color: COLORS.endSleep, icon: "sun.pdc",     kind: "sleepEnd" },
 ];
 
 const HINT_DEFAULT  = "Up/Down  •  Select";
@@ -57,6 +61,9 @@ const state = {
   nursingState:   "none",   // "active" | "paused" | "none" | "unknown"
   nursingStart:   0,        // start time of the current active session
   nursingElapsed: 0,        // total active feeding seconds from HA (frozen value)
+  lastSleep:      0,        // start time of the previous (completed) sleep session
+  sleepState:     "none",   // "active" | "paused" | "none"
+  sleepStart:     0,        // start time of the current active sleep
 };
 
 // ----- Time helpers -------------------------------------------------------
@@ -96,11 +103,9 @@ function lastTimestampFor(kind) {
   if (kind === "bottle")    return state.lastBottle;
   if (kind === "nurse")     return state.lastNurse;
   if (kind === "nurseEnd")  return state.lastNurse;
+  if (kind === "sleep")     return state.lastSleep;
+  if (kind === "sleepEnd")  return state.lastSleep;
   return 0;
-}
-
-function isNurseSelected() {
-  return ACTIONS[selectedIndex].kind === "nurse";
 }
 
 // ----- UI ----------------------------------------------------------------
@@ -110,6 +115,8 @@ const skins = {
   nurse:    new Skin({ fill: COLORS.nurse    }),
   endNurse: new Skin({ fill: COLORS.endNurse }),
   bottle:   new Skin({ fill: COLORS.bottle   }),
+  sleep:    new Skin({ fill: COLORS.sleep    }),
+  endSleep: new Skin({ fill: COLORS.endSleep }),
   status:   new Skin({ fill: "white" }),
 };
 function skinForIndex(i) {
@@ -117,6 +124,8 @@ function skinForIndex(i) {
   if (c === COLORS.diaper)   return skins.diaper;
   if (c === COLORS.bottle)   return skins.bottle;
   if (c === COLORS.endNurse) return skins.endNurse;
+  if (c === COLORS.sleep)    return skins.sleep;
+  if (c === COLORS.endSleep) return skins.endSleep;
   return skins.nurse;
 }
 
@@ -159,15 +168,11 @@ const App = Application.template($ => ({
           style: labelStyle,
           string: ACTIONS[selectedIndex].label,
         }),
-        // One SVGImage per action — Piu's SVGImage loads its PDC at
-        // construct time and has no `path` setter, so we can't swap the
-        // icon on a single element. Render all four stacked at the same
-        // spot and toggle .visible per selection in renderAction().
-        // Memory cost is negligible (~250 B per PDC vs 20 KB per RGBA).
-        SVGImage($, { anchor: "iconDiaper",  width: 72, height: 72, top: 64, path: "poop.pdc" }),
-        SVGImage($, { anchor: "iconBottle",  width: 72, height: 72, top: 64, path: "bottle.pdc" }),
-        SVGImage($, { anchor: "iconNurse",   width: 72, height: 72, top: 64, path: "nursing.pdc" }),
-        SVGImage($, { anchor: "iconStop",    width: 72, height: 72, top: 64, path: "stop.pdc" }),
+        // The icon SVGImage is created dynamically in renderAction() —
+        // see setIcon() below. Pre-instantiating one element per action
+        // pushes XS chunk memory past the device's ~10 KB ceiling once
+        // we get past 4 icons, so we build/destroy a single element on
+        // demand instead.
         Label($, {
           anchor: "time",
           left: 0, right: 0, top: 148, height: 20,
@@ -185,10 +190,22 @@ const App = Application.template($ => ({
   ],
 }));
 
-const refs = { banner: null, bg: null, main: null,
-                iconDiaper: null, iconBottle: null, iconNurse: null, iconStop: null,
-                time: null, hint: null };
+const refs = { banner: null, bg: null, main: null, time: null, hint: null };
 const app = new App(refs, { displayListLength: 4608 });
+
+// One icon SVGImage at a time. Recreated on action change so the chunk-
+// memory footprint is constant regardless of action count.
+let iconElement = null;
+function setIcon(path) {
+  if (iconElement) {
+    refs.bg.remove(iconElement);
+    iconElement = null;
+  }
+  if (path) {
+    iconElement = new SVGImage(null, { width: 72, height: 72, top: 64, path });
+    refs.bg.add(iconElement);
+  }
+}
 
 function bannerText() {
   const d = new Date();
@@ -240,6 +257,22 @@ function updateTimeLine() {
     return;
   }
 
+  // Sleep tracking mirrors nursing's pause/resume model. Timer = wall-clock
+  // since current_start (HA doesn't expose a separate active-only duration
+  // for sleep the way it does for nursing).
+  if (a.kind === "sleep" && state.sleepState === "active") {
+    refs.time.style  = timeStyleBk;
+    refs.time.string = formatTimer(state.sleepStart ? nowSec() - state.sleepStart : 0);
+    refs.hint.string = HINT_PAUSE;
+    return;
+  }
+  if (a.kind === "sleep" && state.sleepState === "paused") {
+    refs.time.style  = timeStyleBk;
+    refs.time.string = "Paused";
+    refs.hint.string = HINT_RESUME;
+    return;
+  }
+
   // Default: "X ago" for the action's last occurrence. Red if > 1 hour.
   refs.hint.string = HINT_DEFAULT;
   const ts = lastTimestampFor(a.kind);
@@ -256,10 +289,7 @@ function renderAction() {
   const a = ACTIONS[selectedIndex];
   refs.main.string = a.label;
   refs.bg.skin     = skinForIndex(selectedIndex);
-  refs.iconDiaper.visible = (a.kind === "diaper");
-  refs.iconBottle.visible = (a.kind === "bottle");
-  refs.iconNurse.visible  = (a.kind === "nurse");
-  refs.iconStop.visible   = (a.kind === "nurseEnd");
+  setIcon(a.icon);
   updateTimeLine();
 }
 
@@ -268,10 +298,7 @@ function showStatus(text, hint) {
   refs.time.string = "";
   refs.hint.string = hint || "";
   refs.bg.skin     = skins.status;
-  refs.iconDiaper.visible = false;
-  refs.iconBottle.visible = false;
-  refs.iconNurse.visible  = false;
-  refs.iconStop.visible   = false;
+  setIcon(null);
 }
 
 // Tick the time line + clock banner every second so "X ago", the active
@@ -302,7 +329,8 @@ const outbox = [];
 const message = new Message({
   keys: ["ACTION", "RESULT", "STATUS", "MESSAGE",
          "LAST_DIAPER", "LAST_BOTTLE",
-         "NURSING_STATE", "NURSING_START", "NURSING_LAST", "NURSING_ELAPSED"],
+         "NURSING_STATE", "NURSING_START", "NURSING_LAST", "NURSING_ELAPSED",
+         "SLEEP_STATE", "SLEEP_START", "SLEEP_LAST", "SLEEP_ELAPSED"],
   onReadable() {
     const msg = this.read();
     const result = msg.get("RESULT");
@@ -314,19 +342,19 @@ const message = new Message({
       state.nursingState   = msg.get("NURSING_STATE")   || "none";
       state.nursingStart   = msg.get("NURSING_START")   || 0;
       state.nursingElapsed = msg.get("NURSING_ELAPSED") || 0;
+      state.lastSleep      = msg.get("SLEEP_LAST")      || 0;
+      state.sleepState     = msg.get("SLEEP_STATE")     || "none";
+      state.sleepStart     = msg.get("SLEEP_START")     || 0;
       lastStateReceivedAtSec = nowSec();
-      console.log(`watch <- state diaper=${state.lastDiaper} bottle=${state.lastBottle} nursing=${state.nursingState} elapsed=${state.nursingElapsed}`);
       if (!busy) updateTimeLine();
       return;
     }
 
     // "ok" or "err" reply to a log action.
-    const status = msg.get("STATUS");
-    console.log(`watch <- pkjs RESULT=${result} STATUS=${status}`);
     if (pendingResolve) {
       const resolve = pendingResolve;
       pendingResolve = null;
-      resolve({ ok: result === "ok", status: status || 0 });
+      resolve({ ok: result === "ok", status: msg.get("STATUS") || 0 });
     }
   },
   onWritable() {
@@ -380,6 +408,28 @@ function handleSelect() {
       lastStateReceivedAtSec = nowSec();
       send("resume_nursing", true).then(result => {
         if (result.ok) state.nursingState = "active";
+        finishStatus(result);
+      });
+      return;
+    }
+  }
+
+  // Active sleep session on the Sleep screen → pause/resume.
+  if (a.kind === "sleep") {
+    if (state.sleepState === "active") {
+      busy = true;
+      showStatus("Pausing...", "");
+      send("pause_sleep", true).then(result => {
+        if (result.ok) state.sleepState = "paused";
+        finishStatus(result);
+      });
+      return;
+    }
+    if (state.sleepState === "paused") {
+      busy = true;
+      showStatus("Resuming...", "");
+      send("resume_sleep", true).then(result => {
+        if (result.ok) state.sleepState = "active";
         finishStatus(result);
       });
       return;
