@@ -4,6 +4,40 @@ All notable changes to Baby StoneFruit. The format is loosely based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project
 follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] — 2026-05-22
+
+Sleep tracking. The first new top-level capability since the 1.0
+release.
+
+### Added
+- **Sleep + End Sleep screens.** Mirrors the existing Nurse / End
+  Nursing flow. Cycle through Diaper → Bottle → Nurse → End Nursing →
+  Sleep → End Sleep. Sleep press starts a session; subsequent presses
+  pause / resume. End Sleep completes and saves the session via
+  `huckleberry.complete_sleep`. State sync picks up external changes
+  (e.g. you ended sleep from the Huckleberry mobile app) within ~15 s
+  thanks to the periodic HA sync added in 1.0.4.
+- **Two new Twemoji icons** — crescent moon (Sleep) on a dusky-blue
+  background, sun (End Sleep) on a sunrise-cream background. Both
+  converted to PDC vectors via the same `tools/scale_svg.py` +
+  `svg2pdc.py` pipeline as the existing icons.
+
+### Changed
+- **Single dynamic SVGImage** architecture replaces the previous
+  one-element-per-action layout. Pre-instantiating five or six
+  `SVGImage` elements pushed XS chunk memory past the device's
+  ceiling. Now one element is destroyed + recreated each time the
+  user navigates between actions; chunk cost is constant regardless
+  of how many actions exist. Future actions add only an ACTIONS
+  entry + a color + a skin, no Piu-element overhead.
+- **Bezier-flattening pass** in `tools/scale_svg.py`. svg2pdc only
+  samples each path segment's start point, so paths made of a small
+  number of long Bezier arcs (e.g. the crescent moon's three big
+  arcs) used to collapse into a triangle. Every CubicBezier /
+  QuadraticBezier / Arc is now pre-sampled into 6 short line segments
+  during preprocessing. Existing icons re-converted; visuals are
+  identical at 72-px on watch.
+
 ## [1.0.4] — 2026-05-22
 
 Watch keeps itself in sync with the Huckleberry app.
