@@ -4,6 +4,23 @@ All notable changes to Baby StoneFruit. The format is loosely based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project
 follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.4] — 2026-05-22
+
+Watch keeps itself in sync with the Huckleberry app.
+
+### Added
+- **Periodic HA state sync.** Every 15 seconds the watch re-fetches
+  state from Home Assistant in the background. If you start a nursing
+  session on the watch and then pause / resume / stop it from the
+  Huckleberry mobile app, the watch picks up the new state within
+  ~15 s without needing to re-open the app. Fixes the "watch timer
+  drifts from Huckleberry app" issue carried over since 1.0.2.
+
+The same change was attempted in 1.0.2 (#60) and immediately OOM'd —
+adding even 20 lines to the watch's JS exceeded the XS chunk-memory
+budget. The bitmap → PDC icon swap in 1.0.3 freed ~80 KB and made
+this feature possible.
+
 ## [1.0.3] — 2026-05-22
 
 Vector icons + memory headroom for future features.
