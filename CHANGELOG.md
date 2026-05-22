@@ -4,6 +4,47 @@ All notable changes to Baby StoneFruit. The format is loosely based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project
 follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.3] — 2026-05-22
+
+Vector icons + memory headroom for future features.
+
+### Changed
+- **Emoji icons are now vector PDCs** instead of RGBA bitmaps. Each icon
+  is a Pebble Draw Command resource (~150–600 bytes each) rendered via
+  Piu's `SVGImage` element, replacing the previous 72×72 PNG bitmaps
+  that decoded to ~20 KB of RAM apiece. Total icon footprint dropped
+  from **~80 KB → ~1 KB** at runtime, giving the watch ~80 KB of XS
+  chunk headroom for features that previously OOM'd.
+- **Thin black outline on every icon** for legibility against the
+  category background colors. The stroke is baked into each PDC at
+  conversion time — zero additional runtime cost.
+- **End Nursing background** swapped from salmon (`#FF7A4F`) to cool
+  gray (`#CCD6DD`). The red stop-sign icon disappeared into the old
+  salmon background; gray-with-red reads at a glance the same way a
+  real stop sign does.
+- **Bottle icon** simplified — Twemoji's three diagonal volume-marker
+  lines were a compound path that svg2pdc rendered with a stray
+  connector line at the bottom. Dropping the marks gives a clean
+  bottle silhouette.
+
+### Repository
+- New `tools/` directory with a Python 3-ported `svg2pdc.py`,
+  `scale_svg.py` for preprocessing Twemoji SVGs (scale to 72×72,
+  convert circles to polygon paths, drop compound paths, add stroke),
+  a `pebble_image_routines.py` palette quantizer stub, and the
+  Twemoji SVG sources for each of the four icons. Documented in
+  `tools/README.md`.
+- Add a `wscript` at the project root so the local Pebble SDK builds
+  the project from a fresh clone (CloudPebble auto-generates this).
+- `.gitignore` for `build/`, waf lockfile, and npm `package-lock.json`.
+
+### Known limitations carried over
+- **Nursing-timer drift** — still on the to-do list, pending a pkjs-side
+  resync (the watch JS budget is no longer the blocker but the work
+  itself hasn't been done yet).
+- **Vibration / sound feedback** — still not wired up. Lives on the
+  `experiment/audio-tones` branch.
+
 ## [1.0.2] — 2026-05-16
 
 UI polish for legibility on both screen shapes.
