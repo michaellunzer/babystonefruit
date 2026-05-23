@@ -52,6 +52,9 @@ let HA_URL    = DEFAULT_HA_URL    || "";
 let HA_TOKEN  = DEFAULT_HA_TOKEN  || "";
 let DEVICE_ID = DEFAULT_DEVICE_ID || "";
 let KID_NAME  = "";
+// Array of { id, enabled } screens in user-chosen order. Empty => watch
+// uses its built-in defaults.
+let SCREENS   = [];
 
 function loadSettings() {
   try {
@@ -62,6 +65,7 @@ function loadSettings() {
     if (s.haToken)     HA_TOKEN  = s.haToken;
     if (s.kidDeviceId) DEVICE_ID = s.kidDeviceId;
     if (s.kidName)     KID_NAME  = s.kidName;
+    if (Array.isArray(s.screens)) SCREENS = s.screens;
   } catch (e) {
     console.log("pkjs: failed to load settings: " + e);
   }
@@ -74,10 +78,20 @@ function saveSettings() {
       haToken:     HA_TOKEN,
       kidDeviceId: DEVICE_ID,
       kidName:     KID_NAME,
+      screens:     SCREENS,
     }));
   } catch (e) {
     console.log("pkjs: failed to save settings: " + e);
   }
+}
+
+// Serialize SCREENS into a single comma-separated string of enabled action
+// IDs in order. Empty if SCREENS is unset — watch falls back to defaults.
+function actionOrderString() {
+  if (!Array.isArray(SCREENS) || SCREENS.length === 0) return "";
+  return SCREENS.filter(s => s && s.enabled !== false && s.id)
+                .map(s => s.id)
+                .join(",");
 }
 
 loadSettings();
@@ -236,6 +250,7 @@ function fetchState() {
     const sleepState =
       parsed.sleep === "active" ? "active" :
       parsed.sleep === "paused" ? "paused" : "none";
+    const order = actionOrderString();
     const payload = {
       RESULT: "state",
       LAST_DIAPER:     isoToEpoch(parsed.diaper),
@@ -248,6 +263,7 @@ function fetchState() {
       SLEEP_START:     isoToEpoch(parsed.sleep_start),
       SLEEP_LAST:      isoToEpoch(parsed.sleep_previous),
     };
+    if (order) payload.ACTION_ORDER = order;
     console.log("pkjs fetchState: diaper_entity=" + parsed.diaper_entity
       + " diaper_raw=" + parsed.diaper
       + " -> LAST_DIAPER=" + payload.LAST_DIAPER
@@ -290,6 +306,7 @@ Pebble.addEventListener("showConfiguration", function () {
     haToken:     HA_TOKEN,
     kidDeviceId: DEVICE_ID,
     kidName:     KID_NAME,
+    screens:     SCREENS,
   };
   const url = CONFIG_URL + "?current=" + encodeURIComponent(JSON.stringify(current));
   Pebble.openURL(url);
@@ -303,8 +320,11 @@ Pebble.addEventListener("webviewclosed", function (e) {
     if (typeof s.haToken     === "string") HA_TOKEN  = s.haToken.trim();
     if (typeof s.kidDeviceId === "string") DEVICE_ID = s.kidDeviceId.trim();
     if (typeof s.kidName     === "string") KID_NAME  = s.kidName.trim();
+    if (Array.isArray(s.screens))          SCREENS   = s.screens;
     saveSettings();
     console.log("pkjs: settings updated from webview");
+    // The next periodic state fetch (within 15 s) carries the new
+    // ACTION_ORDER to the watch — no separate push needed.
   } catch (err) {
     console.log("pkjs: failed to parse webview response: " + err);
   }

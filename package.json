@@ -27,7 +27,8 @@
             "SLEEP_STATE",
             "SLEEP_START",
             "SLEEP_LAST",
-            "SLEEP_ELAPSED"
+            "SLEEP_ELAPSED",
+            "ACTION_ORDER"
         ],
         "projectType": "moddable",
         "resources": {
