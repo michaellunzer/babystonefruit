@@ -110,8 +110,8 @@ Single screen with four physical buttons:
 
 | Action | Color | Icon | Maps to |
 |---|---|---|---|
-| Diaper | 🟡 yellow | 💩 | `huckleberry.log_diaper_both` (medium pee + poo, yellow, runny) |
-| Bottle | 🟣 purple | 🍼 | `huckleberry.log_bottle` (120 ml formula) |
+| Diaper | 🟡 yellow | 💩 | `huckleberry.log_diaper_*` — service and values follow the defaults set in Settings (out of the box: `log_diaper_both`, medium pee + poo, yellow, runny) |
+| Bottle | 🟣 purple | 🍼 | `huckleberry.log_bottle` — amount and type follow the defaults set in Settings (out of the box: 4 oz formula) |
 | Nurse | 🩷 pink | 🤱 | `huckleberry.start_nursing` |
 | End Nursing | 🟥 red | 🛑 | `huckleberry.complete_nursing` |
 

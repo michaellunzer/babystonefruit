@@ -146,6 +146,53 @@
     accent-color: var(--primary);
     flex: 0 0 auto;
   }
+  .seg {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+  .seg button {
+    flex: 0 0 auto;
+    padding: 9px 14px;
+    font-size: 14px;
+    font-weight: 600;
+    background: var(--secondary);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+  }
+  .seg button.selected {
+    background: var(--primary);
+    color: var(--primary-text);
+    border-color: var(--primary);
+  }
+  .swatches {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+  .swatches button {
+    flex: 0 0 36px;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+  }
+  .swatches button.selected {
+    box-shadow: 0 0 0 3px var(--card), 0 0 0 6px var(--primary);
+  }
+  input[type="range"] {
+    width: 100%;
+    accent-color: var(--primary);
+    margin: 6px 0 2px;
+  }
+  .range-value {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 14px;
+  }
 </style>
 </head>
 <body>
@@ -179,6 +226,46 @@
         <li>In HA: <code>Settings → Devices &amp; Services → Huckleberry</code>. Click your child's device — the device ID is shown at the top.</li>
       </ol>
     </details>
+  </div>
+
+  <div class="card">
+    <label style="margin-bottom:8px">Diaper defaults</label>
+    <div class="hint" style="margin-top:0">
+      Used when you tap Diaper on the watch — one press logs with these values.
+    </div>
+
+    <label>Type</label>
+    <div class="seg" id="diaperType"></div>
+
+    <div id="peeSection">
+      <label>Pee amount</label>
+      <div class="seg" id="peeAmount"></div>
+    </div>
+
+    <div id="pooSection">
+      <label>Poo amount</label>
+      <div class="seg" id="pooAmount"></div>
+
+      <label>Color</label>
+      <div class="swatches" id="diaperColor"></div>
+
+      <label>Consistency</label>
+      <div class="seg" id="consistency"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <label style="margin-bottom:8px">Bottle defaults</label>
+    <div class="hint" style="margin-top:0">
+      Used when you tap Bottle on the watch.
+    </div>
+
+    <label for="bottleAmount">Amount</label>
+    <input id="bottleAmount" type="range" min="1" max="6" step="0.5" value="4">
+    <div class="range-value" id="bottleAmountValue">4 oz</div>
+
+    <label>Bottle type</label>
+    <div class="seg" id="bottleType"></div>
   </div>
 
   <div class="card">
@@ -248,6 +335,133 @@
     return out;
   }
   var screens = loadScreens(current.screens);
+
+  // ----- Diaper & bottle defaults ---------------------------------------
+  // Option values mirror the Huckleberry HA integration's services.yaml —
+  // must stay in sync with the lists in pkjs/index.js.
+  var DIAPER_TYPES = [
+    { id: "pee",  label: "Pee" },
+    { id: "poo",  label: "Poo" },
+    { id: "both", label: "Mixed" },
+    { id: "dry",  label: "Dry" },
+  ];
+  var AMOUNTS = [
+    { id: "little", label: "Little" },
+    { id: "medium", label: "Medium" },
+    { id: "big",    label: "Big" },
+  ];
+  var COLORS = [
+    { id: "yellow", css: "#f3c515" },
+    { id: "brown",  css: "#8a5a2b" },
+    { id: "black",  css: "#2b2b2e" },
+    { id: "green",  css: "#3e7a12" },
+    { id: "red",    css: "#e5472f" },
+    { id: "gray",   css: "#ececee" },
+  ];
+  var CONSISTENCIES = [
+    { id: "solid",    label: "Solid" },
+    { id: "loose",    label: "Loose" },
+    { id: "runny",    label: "Runny" },
+    { id: "mucousy",  label: "Mucousy" },
+    { id: "hard",     label: "Hard" },
+    { id: "pebbles",  label: "Pebbles" },
+    { id: "diarrhea", label: "Diarrhea" },
+  ];
+  var BOTTLE_TYPES = [
+    { id: "formula",      label: "Formula" },
+    { id: "breast_milk",  label: "Breast milk" },
+    { id: "tube_feeding", label: "Tube feeding" },
+    { id: "cow_milk",     label: "Cow milk" },
+    { id: "goat_milk",    label: "Goat milk" },
+    { id: "soy_milk",     label: "Soy milk" },
+    { id: "other",        label: "Other" },
+  ];
+
+  function pickValid(value, options, fallback) {
+    for (var i = 0; i < options.length; i++) {
+      if (options[i].id === value) return value;
+    }
+    return fallback;
+  }
+
+  function loadDiaperDefaults(saved) {
+    var s = (saved && typeof saved === "object") ? saved : {};
+    return {
+      type:        pickValid(s.type,        DIAPER_TYPES,  "both"),
+      peeAmount:   pickValid(s.peeAmount,   AMOUNTS,       "medium"),
+      pooAmount:   pickValid(s.pooAmount,   AMOUNTS,       "medium"),
+      color:       pickValid(s.color,       COLORS,        "yellow"),
+      consistency: pickValid(s.consistency, CONSISTENCIES, "runny"),
+    };
+  }
+  var diaperDefaults = loadDiaperDefaults(current.diaperDefaults);
+
+  function loadBottleDefaults(saved) {
+    var s = (saved && typeof saved === "object") ? saved : {};
+    var oz = Number(s.amountOz);
+    if (!isFinite(oz)) oz = 4;
+    oz = Math.round(oz * 2) / 2;
+    if (oz < 1) oz = 1;
+    if (oz > 6) oz = 6;
+    return {
+      amountOz:   oz,
+      bottleType: pickValid(s.bottleType, BOTTLE_TYPES, "formula"),
+    };
+  }
+  var bottleDefaults = loadBottleDefaults(current.bottleDefaults);
+
+  // Render a pill row of options into `el`; clicking updates obj[key] and
+  // re-renders the defaults UI (so visibility rules re-apply).
+  function renderSeg(el, options, obj, key) {
+    el.innerHTML = "";
+    options.forEach(function (opt) {
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.textContent = opt.label;
+      btn.className = obj[key] === opt.id ? "selected" : "";
+      btn.addEventListener("click", function () {
+        obj[key] = opt.id;
+        renderDefaults();
+      });
+      el.appendChild(btn);
+    });
+  }
+
+  function renderDefaults() {
+    renderSeg(document.getElementById("diaperType"), DIAPER_TYPES, diaperDefaults, "type");
+    renderSeg(document.getElementById("peeAmount"), AMOUNTS, diaperDefaults, "peeAmount");
+    renderSeg(document.getElementById("pooAmount"), AMOUNTS, diaperDefaults, "pooAmount");
+    renderSeg(document.getElementById("consistency"), CONSISTENCIES, diaperDefaults, "consistency");
+
+    var colorEl = document.getElementById("diaperColor");
+    colorEl.innerHTML = "";
+    COLORS.forEach(function (c) {
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.style.background = c.css;
+      btn.setAttribute("aria-label", c.id);
+      btn.className = diaperDefaults.color === c.id ? "selected" : "";
+      btn.addEventListener("click", function () {
+        diaperDefaults.color = c.id;
+        renderDefaults();
+      });
+      colorEl.appendChild(btn);
+    });
+
+    var t = diaperDefaults.type;
+    document.getElementById("peeSection").style.display = (t === "pee" || t === "both") ? "" : "none";
+    document.getElementById("pooSection").style.display = (t === "poo" || t === "both") ? "" : "none";
+
+    renderSeg(document.getElementById("bottleType"), BOTTLE_TYPES, bottleDefaults, "bottleType");
+    document.getElementById("bottleAmount").value = bottleDefaults.amountOz;
+    document.getElementById("bottleAmountValue").textContent = bottleDefaults.amountOz + " oz";
+  }
+  renderDefaults();
+
+  document.getElementById("bottleAmount").addEventListener("input", function () {
+    bottleDefaults.amountOz = Number(this.value);
+    document.getElementById("bottleAmountValue").textContent = bottleDefaults.amountOz + " oz";
+  });
 
   function labelFor(id) {
     for (var i = 0; i < ALL_ACTIONS.length; i++) {
@@ -326,6 +540,8 @@
       haToken:     document.getElementById("haToken").value.trim(),
       kidDeviceId: document.getElementById("kidDeviceId").value.trim(),
       screens:     screens,
+      diaperDefaults: diaperDefaults,
+      bottleDefaults: bottleDefaults,
     };
     location.href = returnTo + encodeURIComponent(JSON.stringify(settings));
   });
