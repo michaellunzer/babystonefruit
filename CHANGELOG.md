@@ -4,6 +4,27 @@ All notable changes to Baby StoneFruit. The format is loosely based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project
 follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+Configurable quick-action defaults.
+
+### Added
+- **Diaper defaults in Settings.** Pick what a Diaper press logs: type
+  (Pee / Poo / Mixed / Dry), pee and poo amounts (little / medium / big),
+  color, and consistency — mirroring Huckleberry's own "Add diaper"
+  options. The watch calls the matching service
+  (`log_diaper_pee` / `log_diaper_poo` / `log_diaper_both` /
+  `log_diaper_dry`). Out of the box nothing changes: medium pee + poo,
+  yellow, runny via `log_diaper_both`.
+- **Bottle defaults in Settings.** A 1–6 oz slider (half-ounce steps) for
+  the default amount plus a bottle-type picker (formula, breast milk,
+  tube feeding, cow milk, goat milk, soy milk, other).
+
+### Changed
+- **Bottle logs in ounces.** The default bottle press now sends
+  `4 oz` (`units: "oz"`) instead of the previous hardcoded `120 ml` —
+  effectively the same feed, now user-adjustable.
+
 ## [1.0.4] — 2026-05-22
 
 Watch keeps itself in sync with the Huckleberry app.
