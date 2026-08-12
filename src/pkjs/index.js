@@ -56,6 +56,52 @@ let KID_NAME  = "";
 // uses its built-in defaults.
 let SCREENS   = [];
 
+// Quick-action defaults, set from the config page. Valid values mirror the
+// Huckleberry HA integration's services.yaml — keep in sync with the option
+// lists in config/config.html.
+const DIAPER_TYPES  = ["pee", "poo", "both", "dry"];
+const AMOUNTS       = ["little", "medium", "big"];
+const COLORS        = ["yellow", "brown", "black", "green", "red", "gray"];
+const CONSISTENCIES = ["solid", "loose", "runny", "mucousy", "hard", "pebbles", "diarrhea"];
+const BOTTLE_TYPES  = ["formula", "breast_milk", "tube_feeding", "cow_milk", "goat_milk", "soy_milk", "other"];
+
+const DIAPER_DEFAULTS_FALLBACK = {
+  type: "both", peeAmount: "medium", pooAmount: "medium",
+  color: "yellow", consistency: "runny",
+};
+const BOTTLE_DEFAULTS_FALLBACK = { amountOz: 4, bottleType: "formula" };
+
+let DIAPER_DEFAULTS = Object.assign({}, DIAPER_DEFAULTS_FALLBACK);
+let BOTTLE_DEFAULTS = Object.assign({}, BOTTLE_DEFAULTS_FALLBACK);
+
+function pickValid(value, allowed, fallback) {
+  return allowed.indexOf(value) >= 0 ? value : fallback;
+}
+
+function sanitizeDiaperDefaults(s) {
+  s = (s && typeof s === "object") ? s : {};
+  return {
+    type:        pickValid(s.type,        DIAPER_TYPES,  DIAPER_DEFAULTS_FALLBACK.type),
+    peeAmount:   pickValid(s.peeAmount,   AMOUNTS,       DIAPER_DEFAULTS_FALLBACK.peeAmount),
+    pooAmount:   pickValid(s.pooAmount,   AMOUNTS,       DIAPER_DEFAULTS_FALLBACK.pooAmount),
+    color:       pickValid(s.color,       COLORS,        DIAPER_DEFAULTS_FALLBACK.color),
+    consistency: pickValid(s.consistency, CONSISTENCIES, DIAPER_DEFAULTS_FALLBACK.consistency),
+  };
+}
+
+function sanitizeBottleDefaults(s) {
+  s = (s && typeof s === "object") ? s : {};
+  let oz = Number(s.amountOz);
+  if (!isFinite(oz)) oz = BOTTLE_DEFAULTS_FALLBACK.amountOz;
+  oz = Math.round(oz * 2) / 2;
+  if (oz < 1) oz = 1;
+  if (oz > 6) oz = 6;
+  return {
+    amountOz:   oz,
+    bottleType: pickValid(s.bottleType, BOTTLE_TYPES, BOTTLE_DEFAULTS_FALLBACK.bottleType),
+  };
+}
+
 function loadSettings() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -66,6 +112,8 @@ function loadSettings() {
     if (s.kidDeviceId) DEVICE_ID = s.kidDeviceId;
     if (s.kidName)     KID_NAME  = s.kidName;
     if (Array.isArray(s.screens)) SCREENS = s.screens;
+    if (s.diaperDefaults) DIAPER_DEFAULTS = sanitizeDiaperDefaults(s.diaperDefaults);
+    if (s.bottleDefaults) BOTTLE_DEFAULTS = sanitizeBottleDefaults(s.bottleDefaults);
   } catch (e) {
     console.log("pkjs: failed to load settings: " + e);
   }
@@ -79,6 +127,8 @@ function saveSettings() {
       kidDeviceId: DEVICE_ID,
       kidName:     KID_NAME,
       screens:     SCREENS,
+      diaperDefaults: DIAPER_DEFAULTS,
+      bottleDefaults: BOTTLE_DEFAULTS,
     }));
   } catch (e) {
     console.log("pkjs: failed to save settings: " + e);
@@ -105,15 +155,29 @@ console.log("pkjs: HA_URL=" + (HA_URL ? "set" : "MISSING")
 
 function buildCall(action) {
   switch (action) {
-    case "diaper":
-      return {
-        path: "huckleberry/log_diaper_both",
-        body: { pee_amount: "medium", poo_amount: "medium", color: "yellow", consistency: "runny" },
-      };
+    case "diaper": {
+      const d = DIAPER_DEFAULTS;
+      switch (d.type) {
+        case "pee":
+          return { path: "huckleberry/log_diaper_pee", body: { pee_amount: d.peeAmount } };
+        case "poo":
+          return {
+            path: "huckleberry/log_diaper_poo",
+            body: { poo_amount: d.pooAmount, color: d.color, consistency: d.consistency },
+          };
+        case "dry":
+          return { path: "huckleberry/log_diaper_dry", body: {} };
+        default:
+          return {
+            path: "huckleberry/log_diaper_both",
+            body: { pee_amount: d.peeAmount, poo_amount: d.pooAmount, color: d.color, consistency: d.consistency },
+          };
+      }
+    }
     case "bottle":
       return {
         path: "huckleberry/log_bottle",
-        body: { amount: 120.0, bottle_type: "formula", units: "ml" },
+        body: { amount: BOTTLE_DEFAULTS.amountOz, bottle_type: BOTTLE_DEFAULTS.bottleType, units: "oz" },
       };
     case "nurse":          return { path: "huckleberry/start_nursing",    body: {} };
     case "nurse_end":      return { path: "huckleberry/complete_nursing", body: {} };
@@ -307,6 +371,8 @@ Pebble.addEventListener("showConfiguration", function () {
     kidDeviceId: DEVICE_ID,
     kidName:     KID_NAME,
     screens:     SCREENS,
+    diaperDefaults: DIAPER_DEFAULTS,
+    bottleDefaults: BOTTLE_DEFAULTS,
   };
   const url = CONFIG_URL + "?current=" + encodeURIComponent(JSON.stringify(current));
   Pebble.openURL(url);
@@ -321,6 +387,8 @@ Pebble.addEventListener("webviewclosed", function (e) {
     if (typeof s.kidDeviceId === "string") DEVICE_ID = s.kidDeviceId.trim();
     if (typeof s.kidName     === "string") KID_NAME  = s.kidName.trim();
     if (Array.isArray(s.screens))          SCREENS   = s.screens;
+    if (s.diaperDefaults) DIAPER_DEFAULTS = sanitizeDiaperDefaults(s.diaperDefaults);
+    if (s.bottleDefaults) BOTTLE_DEFAULTS = sanitizeBottleDefaults(s.bottleDefaults);
     saveSettings();
     console.log("pkjs: settings updated from webview");
     // The next periodic state fetch (within 15 s) carries the new
