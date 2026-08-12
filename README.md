@@ -11,6 +11,7 @@ Built on the modern [Moddable Pebble JS SDK](https://developer.repebble.com/guid
 - **Last-event time** below each icon (e.g. *5 min ago*) — turns red after 1 hour
 - **Live nursing timer** that ticks while a session is active and *freezes* while paused
 - **Pause / resume** the active nursing session directly from the watch (Select toggles)
+- **Configurable one-tap defaults** — choose the diaper type (pee / poo / mixed / dry), amounts, color, and consistency, plus the bottle amount (1–6 oz) and type, from the in-app settings page
 - **Secrets stay encrypted in CloudPebble** — no tokens in source, no extra server to run
 
 ## Screenshots
@@ -195,7 +196,7 @@ The settings page is hosted via GitHub Pages at <https://babystonefruit.michaell
 
 ## Limitations & known gaps
 
-- **Bottle has no "session" concept.** Huckleberry models a bottle feeding as a one-shot event with `amount_ml`. The watch logs 120 ml of formula instantly when you press Select. There's no live bottle timer because there's no server-side equivalent of `pause_nursing`.
+- **Bottle has no "session" concept.** Huckleberry models a bottle feeding as a one-shot event with an amount. The watch logs the bottle instantly when you press Select — the amount and bottle type are configurable in the app's Settings page (defaults: 4 oz of formula). There's no live bottle timer because there's no server-side equivalent of `pause_nursing`.
 - **Single-child only for now.** The integration supports multiple children; the watch app currently uses one configured `HA_kid_device_id`. An in-app child picker is a reasonable future addition.
 - **Pebble app size is small.** All four emojis are bundled as PDC (Pebble Draw Command) vectors — each ~200–600 bytes on disk and ~250 bytes RAM, vs ~20 KB RAM per decoded 72×72 RGBA bitmap. Frees enough memory headroom on the device to actually add features.
 - **Polling cadence.** The watch refreshes state on startup and after each successful log. Externally-triggered changes (e.g. logging from the Huckleberry mobile app) won't show up until the next watch action.

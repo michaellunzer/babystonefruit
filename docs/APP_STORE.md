@@ -27,8 +27,8 @@ form on the Rebble app store dashboard) when submitting the app.
 Baby StoneFruit puts diaper, bottle, and nursing logging on your wrist — one button press and Huckleberry has it. No third-party servers; everything routes through your own Home Assistant.
 
 **What you can do**
-- Log a diaper change (defaults: medium pee + poo, yellow, runny) with one tap.
-- Log a 120 ml formula bottle with one tap.
+- Log a diaper change with one tap — pick your own defaults in Settings: type (pee / poo / mixed / dry), amounts, color, and consistency.
+- Log a bottle with one tap — set your own default amount (1–6 oz) and bottle type in Settings.
 - Start, pause, resume, and end a nursing session — the watch's live timer stays in sync with the Huckleberry mobile app, including across pauses.
 - See "X minutes ago" below each action so you know at a glance when the last event was. After an hour the line turns red.
 - Always-on clock banner at the top of every screen.
