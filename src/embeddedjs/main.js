@@ -120,7 +120,7 @@ const skins = {
   status:   new Skin({ fill: "white" }),
 };
 function skinForIndex(i) {
-  const c = ACTIONS[i].color;
+  const c = visibleActions[i].color;
   if (c === COLORS.diaper)   return skins.diaper;
   if (c === COLORS.bottle)   return skins.bottle;
   if (c === COLORS.endNurse) return skins.endNurse;
@@ -128,6 +128,11 @@ function skinForIndex(i) {
   if (c === COLORS.endSleep) return skins.endSleep;
   return skins.nurse;
 }
+
+// Subset of ACTIONS to actually render, in user-chosen order. Defaults to
+// all of ACTIONS; pkjs sends a new ACTION_ORDER string on every state
+// reply (see onReadable below) when the in-app config page changes it.
+let visibleActions = ACTIONS;
 
 const labelStyle    = new Style({ font: "bold 24px Gothic", color: "black",  horizontal: "center", vertical: "middle" });
 const timeStyleBk   = new Style({ font: "bold 18px Gothic", color: "black",  horizontal: "center", vertical: "middle" });
@@ -166,7 +171,8 @@ const App = Application.template($ => ({
           anchor: "main",
           left: 0, right: 0, top: 24, height: 28,
           style: labelStyle,
-          string: ACTIONS[selectedIndex].label,
+          string: ACTIONS[0].label,   // visibleActions[0].label at boot
+
         }),
         // The icon SVGImage is created dynamically in renderAction() —
         // see setIcon() below. Pre-instantiating one element per action
@@ -226,7 +232,7 @@ function updateBanner() {
 // the latest known state. Called on selection change, after fetch_state,
 // and once a second by the ticker.
 function updateTimeLine() {
-  const a = ACTIONS[selectedIndex];
+  const a = visibleActions[selectedIndex];
 
   // Active nursing session takes over the time line (and hint).
   if (a.kind === "nurse" && state.nursingState === "active") {
@@ -286,7 +292,7 @@ function updateTimeLine() {
 }
 
 function renderAction() {
-  const a = ACTIONS[selectedIndex];
+  const a = visibleActions[selectedIndex];
   refs.main.string = a.label;
   refs.bg.skin     = skinForIndex(selectedIndex);
   setIcon(a.icon);
@@ -330,7 +336,8 @@ const message = new Message({
   keys: ["ACTION", "RESULT", "STATUS", "MESSAGE",
          "LAST_DIAPER", "LAST_BOTTLE",
          "NURSING_STATE", "NURSING_START", "NURSING_LAST", "NURSING_ELAPSED",
-         "SLEEP_STATE", "SLEEP_START", "SLEEP_LAST", "SLEEP_ELAPSED"],
+         "SLEEP_STATE", "SLEEP_START", "SLEEP_LAST", "SLEEP_ELAPSED",
+         "ACTION_ORDER"],
   onReadable() {
     const msg = this.read();
     const result = msg.get("RESULT");
@@ -345,6 +352,21 @@ const message = new Message({
       state.lastSleep      = msg.get("SLEEP_LAST")      || 0;
       state.sleepState     = msg.get("SLEEP_STATE")     || "none";
       state.sleepStart     = msg.get("SLEEP_START")     || 0;
+      const order = msg.get("ACTION_ORDER");
+      if (order) {
+        const ids = order.split(",");
+        const v = [];
+        for (let i = 0; i < ids.length; i++) {
+          for (let j = 0; j < ACTIONS.length; j++) {
+            if (ACTIONS[j].action === ids[i]) { v.push(ACTIONS[j]); break; }
+          }
+        }
+        if (v.length) {
+          visibleActions = v;
+          if (selectedIndex >= v.length) selectedIndex = 0;
+          if (refs.bg) renderAction();
+        }
+      }
       lastStateReceivedAtSec = nowSec();
       if (!busy) updateTimeLine();
       return;
@@ -384,7 +406,7 @@ function fetchState() {
 // ----- Buttons -----------------------------------------------------------
 
 function handleSelect() {
-  const a = ACTIONS[selectedIndex];
+  const a = visibleActions[selectedIndex];
 
   // Active nursing session on the Nurse screen -> pause/resume.
   if (a.kind === "nurse") {
@@ -463,13 +485,14 @@ new Button({
     if (!down) return;
     if (busy) return;
 
+    const n = visibleActions.length;
     if (type === "up") {
-      selectedIndex = (selectedIndex - 1 + ACTIONS.length) % ACTIONS.length;
+      selectedIndex = (selectedIndex - 1 + n) % n;
       renderAction();
       return;
     }
     if (type === "down") {
-      selectedIndex = (selectedIndex + 1) % ACTIONS.length;
+      selectedIndex = (selectedIndex + 1) % n;
       renderAction();
       return;
     }

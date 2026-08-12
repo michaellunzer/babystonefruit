@@ -115,6 +115,37 @@
     border-radius: 4px;
     font-size: 12px;
   }
+  .screen-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 0;
+    border-top: 1px solid var(--border);
+  }
+  .screen-row:first-child { border-top: 0; }
+  .screen-row .label { flex: 1; font-size: 15px; }
+  .screen-row .label.disabled { color: var(--muted); }
+  .screen-row .reorder { display: flex; gap: 4px; }
+  .screen-row button.iconbtn {
+    flex: 0 0 36px;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    background: var(--secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 18px;
+    line-height: 1;
+    color: var(--text);
+    font-family: inherit;
+  }
+  .screen-row button.iconbtn:disabled { opacity: 0.35; }
+  .screen-row input[type="checkbox"] {
+    width: 22px;
+    height: 22px;
+    accent-color: var(--primary);
+    flex: 0 0 auto;
+  }
 </style>
 </head>
 <body>
@@ -150,6 +181,16 @@
     </details>
   </div>
 
+  <div class="card">
+    <label style="margin-bottom:8px">Screens</label>
+    <div class="hint" style="margin-top:0">
+      Untick to hide a screen on the watch. Drag the &uarr;&darr; buttons to
+      reorder. End-of-session screens (End Nursing, End Sleep) only matter if
+      you also enable the matching start screen.
+    </div>
+    <ul id="screensList" style="list-style:none;padding:0;margin:0"></ul>
+  </div>
+
   <div class="actions">
     <button id="cancel" type="button" class="secondary">Cancel</button>
     <button id="save" type="button" class="primary">Save</button>
@@ -161,14 +202,120 @@
     return m ? decodeURIComponent(m[1]) : "";
   }
 
+  // Canonical action list — must stay in sync with ACTIONS in main.js.
+  // The "id" is the action string the watch sends to pkjs.
+  var ALL_ACTIONS = [
+    { id: "diaper",     label: "Diaper" },
+    { id: "bottle",     label: "Bottle" },
+    { id: "nurse",      label: "Nurse" },
+    { id: "nurse_end",  label: "End Nursing" },
+    { id: "sleep",      label: "Sleep" },
+    { id: "sleep_end",  label: "End Sleep" },
+  ];
+
   // Pre-fill from current settings if the watch app passed them in.
-  try {
-    var current = JSON.parse(qs("current") || "{}");
-    if (current.kidName)     document.getElementById("kidName").value     = current.kidName;
-    if (current.haUrl)       document.getElementById("haUrl").value       = current.haUrl;
-    if (current.haToken)     document.getElementById("haToken").value     = current.haToken;
-    if (current.kidDeviceId) document.getElementById("kidDeviceId").value = current.kidDeviceId;
-  } catch (e) {}
+  var current = {};
+  try { current = JSON.parse(qs("current") || "{}"); } catch (e) {}
+  if (current.kidName)     document.getElementById("kidName").value     = current.kidName;
+  if (current.haUrl)       document.getElementById("haUrl").value       = current.haUrl;
+  if (current.haToken)     document.getElementById("haToken").value     = current.haToken;
+  if (current.kidDeviceId) document.getElementById("kidDeviceId").value = current.kidDeviceId;
+
+  // Build the working screen-list state: array of { id, enabled } objects
+  // in user-chosen order. If saved settings exist, use them; otherwise
+  // default to all six enabled in canonical order.
+  function defaultScreens() {
+    return ALL_ACTIONS.map(function (a) { return { id: a.id, enabled: true }; });
+  }
+  function loadScreens(saved) {
+    if (!Array.isArray(saved)) return defaultScreens();
+    var byId = {};
+    ALL_ACTIONS.forEach(function (a) { byId[a.id] = true; });
+    var seen = {};
+    var out = [];
+    saved.forEach(function (entry) {
+      var id = entry && entry.id;
+      if (byId[id] && !seen[id]) {
+        out.push({ id: id, enabled: entry.enabled !== false });
+        seen[id] = true;
+      }
+    });
+    // Append any new actions the saved settings don't know about
+    // (e.g. user upgraded and a new screen was added).
+    ALL_ACTIONS.forEach(function (a) {
+      if (!seen[a.id]) out.push({ id: a.id, enabled: true });
+    });
+    return out;
+  }
+  var screens = loadScreens(current.screens);
+
+  function labelFor(id) {
+    for (var i = 0; i < ALL_ACTIONS.length; i++) {
+      if (ALL_ACTIONS[i].id === id) return ALL_ACTIONS[i].label;
+    }
+    return id;
+  }
+
+  function renderScreens() {
+    var ul = document.getElementById("screensList");
+    ul.innerHTML = "";
+    screens.forEach(function (entry, idx) {
+      var li = document.createElement("li");
+      li.className = "screen-row";
+
+      var cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.checked = entry.enabled;
+      cb.addEventListener("change", function () {
+        entry.enabled = cb.checked;
+        renderScreens();
+      });
+
+      var lbl = document.createElement("span");
+      lbl.className = "label" + (entry.enabled ? "" : " disabled");
+      lbl.textContent = labelFor(entry.id);
+
+      var reorder = document.createElement("div");
+      reorder.className = "reorder";
+
+      var up = document.createElement("button");
+      up.type = "button";
+      up.className = "iconbtn";
+      up.setAttribute("aria-label", "Move " + labelFor(entry.id) + " up");
+      up.textContent = "↑";
+      up.disabled = idx === 0;
+      up.addEventListener("click", function () {
+        if (idx === 0) return;
+        var tmp = screens[idx - 1];
+        screens[idx - 1] = screens[idx];
+        screens[idx] = tmp;
+        renderScreens();
+      });
+
+      var down = document.createElement("button");
+      down.type = "button";
+      down.className = "iconbtn";
+      down.setAttribute("aria-label", "Move " + labelFor(entry.id) + " down");
+      down.textContent = "↓";
+      down.disabled = idx === screens.length - 1;
+      down.addEventListener("click", function () {
+        if (idx === screens.length - 1) return;
+        var tmp = screens[idx + 1];
+        screens[idx + 1] = screens[idx];
+        screens[idx] = tmp;
+        renderScreens();
+      });
+
+      reorder.appendChild(up);
+      reorder.appendChild(down);
+
+      li.appendChild(cb);
+      li.appendChild(lbl);
+      li.appendChild(reorder);
+      ul.appendChild(li);
+    });
+  }
+  renderScreens();
 
   var returnTo = qs("return_to") || "pebblejs://close#";
 
@@ -178,6 +325,7 @@
       haUrl:       document.getElementById("haUrl").value.trim().replace(/\/+$/, ""),
       haToken:     document.getElementById("haToken").value.trim(),
       kidDeviceId: document.getElementById("kidDeviceId").value.trim(),
+      screens:     screens,
     };
     location.href = returnTo + encodeURIComponent(JSON.stringify(settings));
   });
