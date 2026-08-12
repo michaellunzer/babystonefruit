@@ -41,6 +41,14 @@ const moddableProxy = require("@moddable/pebbleproxy");
 
 const STORAGE_KEY = "settings";
 
+// The phone-side JS runtime (pypkjs in emulators, the mobile companion on
+// real phones) has no `process` global. CloudPebble replaces the literal
+// text `process.env.<name>` at build time when the env vars are set, but if
+// they aren't set the reference survives to runtime and crashes pkjs at
+// load — which surfaces as "Connection to the phone was interrupted" on
+// install. Shim it so the fallback is simply "no defaults configured".
+if (typeof process === "undefined") { var process = { env: {} }; }
+
 const DEFAULT_HA_URL    = process.env.Home_Assistant_URL;
 const DEFAULT_HA_TOKEN  = process.env.HA_long_token;
 const DEFAULT_DEVICE_ID = process.env.HA_kid_device_id;
